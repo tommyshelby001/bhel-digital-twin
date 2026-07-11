@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BHEL HEEP — Digital Twin System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --ink: #060d16;
+  --steel: #0b1622;
+  --panel: #101f30;
+  --panel-hi: #16293c;
+  --rim: #2a4a63;
+  --rim2: #35597a;
+  --amber: #ffb020;
+  --amber-dim: #c98a2e;
+  --amber-glow: rgba(255,176,32,.14);
+  --cyan: #22d3ee;
+  --cyan-dim: #3daecb;
+  --cyan-glow: rgba(34,211,238,.12);
+  --green: #34e2a0;
+  --green-glow: rgba(52,226,160,.12);
+  --red: #ff5d6c;
+  --red-glow: rgba(255,93,108,.14);
+  --text: #e7eef6;
+  --text-hi: #ffffff;
+  --dim: #8fb0c8;
+  --dimmer: #6688a2;
+  --display: 'Orbitron', monospace;
+  --body: 'Inter', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--body);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+  position: relative;
+}
+/* ambient glow */
+.amb-glow{position:fixed;border-radius:50%;filter:blur(110px);opacity:.16;pointer-events:none;z-index:0}
+.amb-1{width:600px;height:600px;background:radial-gradient(circle,var(--amber),transparent 70%);top:-220px;left:-160px}
+.amb-2{width:640px;height:640px;background:radial-gradient(circle,var(--cyan),transparent 70%);bottom:-260px;right:-180px}
+.scanline-ov{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0px, transparent 1px, transparent 3px);}
+.topbar, .page, .footer { position: relative; z-index: 2; }
+
+/* HUD corner brackets on cards */
+.card { position: relative; }
+.card::before, .card::after,
+.card-header::before {}
+.card > .corner-hud { position:absolute; width:12px; height:12px; pointer-events:none; z-index:3; }
+.corner-hud.c-tl{top:-1px;left:-1px;border-top:2px solid var(--cyan-dim);border-left:2px solid var(--cyan-dim)}
+.corner-hud.c-br{bottom:-1px;right:-1px;border-bottom:2px solid var(--cyan-dim);border-right:2px solid var(--cyan-dim)}
+
+/* ═══════════════════════════════════════════
+   TOPBAR
+═══════════════════════════════════════════ */
+.topbar {
+  height: 58px;
+  background: var(--steel);
+  border-bottom: 1px solid var(--rim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky; top: 0; z-index: 200;
+  gap: 16px;
+}
+.tb-brand {
+  display: flex; align-items: center; gap: 14px;
+  flex-shrink: 0;
+}
+.tb-logo {
+  font-family: var(--display);
+  font-size: 1.4rem; font-weight: 900;
+  color: var(--amber);
+  letter-spacing: .1em;
+}
+.tb-divider { width: 1px; height: 32px; background: var(--rim2); }
+.tb-system {
+  font-family: var(--display);
+  font-size: .55rem; font-weight: 500;
+  color: var(--dim);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  line-height: 1.6;
+}
+.tb-system b { color: var(--text); display: block; font-size: .62rem; }
+
+.tb-pills {
+  display: flex; gap: 8px; flex: 1; justify-content: center;
+}
+.pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 14px;
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 2px;
+  min-width: 110px;
+}
+.pill-val {
+  font-family: var(--mono);
+  font-size: 1rem; font-weight: 500;
+  color: var(--text-hi);
+  letter-spacing: .02em;
+}
+.pill-val.green { color: var(--green); }
+.pill-val.amber { color: var(--amber); }
+.pill-val.red   { color: var(--red); }
+.pill-label {
+  font-size: .58rem; color: var(--dim);
+  text-transform: uppercase; letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.tb-meta {
+  display: flex; align-items: center; gap: 14px;
+  flex-shrink: 0;
+}
+.tb-user { text-align: right; }
+.tb-user-name {
+  font-size: .78rem; font-weight: 600; color: var(--text-hi);
+  white-space: nowrap;
+}
+.tb-user-role {
+  font-size: .58rem; color: var(--amber);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.tb-clock {
+  font-family: var(--mono);
+  font-size: .9rem; color: var(--cyan);
+  text-align: right; white-space: nowrap;
+}
+.tb-clock small { display: block; font-size: .58rem; color: var(--dim); }
+.tb-nav { display: flex; gap: 2px; }
+.tb-nav a {
+  font-family: var(--body); font-size: .62rem; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--dim); text-decoration: none;
+  padding: 6px 12px; border-radius: 2px;
+  border: 1px solid transparent;
+  transition: .2s;
+}
+.tb-nav a:hover { color: var(--amber); border-color: var(--amber-dim); }
+.tb-nav a.active { color: var(--amber); border-color: var(--amber-dim); background: var(--amber-glow); }
+.tb-nav a.logout:hover { color: var(--red); border-color: rgba(239,68,68,.3); }
+
+/* ═══════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════ */
+.page { padding: 16px 20px; max-width: 1800px; margin: 0 auto; }
+
+.machine-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.mtab {
+  font-family: var(--mono); font-size: .65rem; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .08em;
+  padding: 6px 16px; border-radius: 2px;
+  border: 1px solid var(--rim); color: var(--dim);
+  background: transparent; cursor: pointer; transition: .2s;
+}
+.mtab:hover:not(.maint) { border-color: var(--amber-dim); color: var(--amber); }
+.mtab.active { border-color: var(--amber); color: var(--amber); background: var(--amber-glow); }
+.mtab.maint { border-color: var(--dimmer); color: var(--dimmer); cursor: not-allowed; font-size: .6rem; }
+
+.layout { display: grid; grid-template-columns: 1fr 340px; gap: 14px; }
+.right-stack { display: flex; flex-direction: column; gap: 14px; }
+
+/* ═══════════════════════════════════════════
+   PANELS
+═══════════════════════════════════════════ */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--rim);
+  background: linear-gradient(90deg, var(--panel-hi), var(--panel));
+}
+.card-title {
+  font-family: var(--display); font-size: .58rem; font-weight: 700;
+  color: var(--dim); text-transform: uppercase; letter-spacing: .14em;
+}
+.card-badge {
+  font-family: var(--mono); font-size: .6rem; color: var(--green);
+  display: flex; align-items: center; gap: 5px;
+}
+.dot-live {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--green); animation: blink 1.8s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.15} }
+.card-body { padding: 14px 16px; }
+
+/* ═══════════════════════════════════════════
+   TURBINE SVG
+═══════════════════════════════════════════ */
+.turbine-card .card-body { padding: 8px; }
+.turbine-svg-wrap {
+  background: #060f18;
+  border: 1px solid var(--rimDark, #111f2c);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+/* Status bar below turbine */
+.turbine-status {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid var(--rim);
+}
+.status-pill {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--display); font-size: .68rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: 7px 16px; border-radius: 2px;
+  transition: all .4s;
+}
+.status-pill.safe { color: var(--green); background: var(--green-glow); border: 1px solid rgba(16,185,129,.25); }
+.status-pill.risk { color: var(--red); background: var(--red-glow); border: 1px solid rgba(239,68,68,.35); animation: pulse-red 1s infinite; }
+.status-pill.maint { color: var(--amber); background: var(--amber-glow); border: 1px solid rgba(245,158,11,.25); }
+@keyframes pulse-red { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} 50%{box-shadow:0 0 18px rgba(239,68,68,.3)} }
+.prob-mini { display: flex; align-items: center; gap: 10px; }
+.prob-bar-sm { width: 120px; height: 6px; background: var(--panel-hi); border-radius: 3px; overflow: hidden; }
+.prob-fill-sm { height: 100%; background: linear-gradient(90deg,var(--green),var(--amber),var(--red)); transition: width .5s; }
+.prob-pct { font-family: var(--mono); font-size: .72rem; color: var(--text); }
+
+/* ═══════════════════════════════════════════
+   GAUGES
+═══════════════════════════════════════════ */
+.gauges-strip {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 8px; padding: 12px 8px 8px;
+  border-top: 1px solid var(--rim);
+}
+.gauge-cell { text-align: center; }
+.gauge-name {
+  font-family: var(--display); font-size: .52rem; font-weight: 500;
+  color: var(--dim); text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: 4px;
+}
+.gauge-readout {
+  font-family: var(--mono); font-size: .9rem; font-weight: 500;
+  color: var(--text-hi); transition: color .3s;
+}
+.gauge-unit { font-size: .55rem; color: var(--dim); }
+.spark { display:block; margin:4px auto 0; opacity:.9; }
+
+/* ═══════════════════════════════════════════
+   SENSOR TABLE
+═══════════════════════════════════════════ */
+.sensor-table { width: 100%; border-collapse: collapse; }
+.sensor-table tr { border-bottom: 1px solid var(--rim); }
+.sensor-table tr:last-child { border: none; }
+.sensor-table td { padding: 8px 4px; font-size: .72rem; }
+.s-label { color: var(--dim); font-size: .62rem; text-transform: uppercase; letter-spacing: .08em; }
+.s-val-cell { font-family: var(--mono); font-weight: 500; font-size: .88rem; color: var(--text-hi); text-align: right; transition: color .3s; }
+.s-unit-cell { font-size: .6rem; color: var(--dimmer); width: 50px; }
+.s-bar-cell { width: 80px; }
+.s-bar-bg { height: 3px; background: var(--panel-hi); border-radius: 2px; overflow: hidden; }
+.s-bar-fg { height: 100%; border-radius: 2px; transition: width .4s, background .4s; background: var(--cyan); }
+
+/* ═══════════════════════════════════════════
+   RIGHT COLUMN CARDS
+═══════════════════════════════════════════ */
+.rul-number {
+  font-family: var(--display); font-size: 3.5rem; font-weight: 900;
+  color: var(--amber); line-height: 1; margin: 8px 0 2px;
+}
+.rul-desc { font-size: .65rem; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; }
+.rul-status { font-size: .72rem; font-weight: 600; margin-top: 6px; }
+.rul-track { height: 6px; background: var(--panel-hi); border-radius: 3px; margin-top: 14px; overflow: hidden; }
+.rul-fill { height: 100%; border-radius: 3px; transition: width .6s, background .6s; }
+.rul-hint { font-size: .58rem; color: var(--dimmer); font-family: var(--mono); margin-top: 8px; }
+
+.stat-rows { display: flex; flex-direction: column; gap: 0; }
+.stat-row-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid var(--rim);
+}
+.stat-row-item:last-child { border: none; }
+.stat-row-label { font-size: .68rem; color: var(--dim); }
+.stat-row-val { font-family: var(--mono); font-size: .82rem; font-weight: 600; color: var(--amber); }
+.stat-row-val.green { color: var(--green); }
+.savings-highlight {
+  margin-top: 10px; padding: 12px;
+  background: linear-gradient(135deg, rgba(16,185,129,.06), rgba(6,182,212,.04));
+  border: 1px solid rgba(16,185,129,.18); border-radius: 2px; text-align: center;
+}
+.savings-label { font-size: .58rem; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; font-family: var(--display); }
+.savings-amount { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; color: var(--green); margin-top: 4px; }
+
+.voice-toggle {
+  width: 100%; padding: 10px; margin-top: 8px;
+  background: var(--panel-hi); border: 1px solid var(--rim2);
+  color: var(--dim); font-family: var(--display); font-size: .6rem;
+  letter-spacing: .1em; text-transform: uppercase;
+  border-radius: 2px; cursor: pointer; transition: .2s;
+}
+.voice-toggle:hover { border-color: var(--amber-dim); color: var(--amber); background: var(--amber-glow); }
+.voice-toggle.active { border-color: rgba(239,68,68,.4); color: var(--red); background: var(--red-glow); }
+.voice-data { font-family: var(--mono); font-size: .62rem; color: var(--dimmer); line-height: 2.2; margin-top: 10px; }
+.voice-data b { color: var(--text); }
+
+.sysinfo { font-family: var(--mono); font-size: .62rem; color: var(--dimmer); line-height: 2.2; }
+.sysinfo .key { color: var(--dim); }
+.sysinfo .val { color: var(--cyan); }
+.sysinfo .val.ok { color: var(--green); }
+.sysinfo .val.warn { color: var(--amber); }
+
+/* ═══════════════════════════════════════════
+   CHART + LOG
+═══════════════════════════════════════════ */
+.chart-area { height: 150px; position: relative; }
+.event-log { max-height: 120px; overflow-y: auto; }
+.log-line {
+  display: flex; gap: 10px; padding: 5px 0;
+  border-bottom: 1px solid var(--rim); font-size: .65rem;
+}
+.log-line:last-child { border: none; }
+.log-ts { font-family: var(--mono); color: var(--cyan); white-space: nowrap; font-size: .6rem; min-width: 68px; }
+.log-msg { color: var(--dim); }
+.log-line.warn .log-msg { color: var(--red); }
+.log-line.ok .log-msg { color: var(--green); }
+
+/* ═══════════════════════════════════════════
+   BOTTOM BAR
+═══════════════════════════════════════════ */
+.bottom-strip {
+  margin-top: 12px;
+  background: var(--panel);
+  border: 1px solid var(--rim);
+  border-radius: 3px;
+  display: flex; justify-content: space-around;
+  padding: 10px 20px; flex-wrap: wrap; gap: 10px;
+}
+.bstrip-item { text-align: center; min-width: 80px; }
+.bstrip-val { font-family: var(--mono); font-size: .88rem; font-weight: 600; color: var(--cyan); }
+.bstrip-label { font-size: .55rem; color: var(--dimmer); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+
+/* ═══════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════ */
+.footer {
+  text-align: center; padding: 12px 20px;
+  font-size: .58rem; color: var(--dimmer);
+  font-family: var(--mono); letter-spacing: .05em;
+  border-top: 1px solid var(--rim); margin-top: 12px;
+}
+.footer .accent { color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="amb-glow amb-1"></div>
+<div class="amb-glow amb-2"></div>
+<div class="scanline-ov"></div>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">BHEL</div>
+    <div class="tb-divider"></div>
+    <div class="tb-system">
+      <b>AI Digital Twin Platform</b>
+      HEEP Haridwar · Steam Turbine Monitoring
+    </div>
+  </div>
+
+  <div class="tb-pills">
+    <div class="pill">
+      <div><div class="pill-val">1210</div><div class="pill-label">MW Capacity</div></div>
+    </div>
+    <div class="pill">
+      <div><div class="pill-val green" id="statOnline">2</div><div class="pill-label">Online</div></div>
+    </div>
+    <div class="pill">
+      <div><div class="pill-val amber" id="statMaint">1</div><div class="pill-label">Maintenance</div></div>
+    </div>
+    <div class="pill">
+      <div><div class="pill-val red" id="statAlerts">{{ active_alerts }}</div><div class="pill-label">Alerts</div></div>
+    </div>
+  </div>
+
+  <div class="tb-meta">
+    <div class="tb-user">
+      <div class="tb-user-name">{{ user }}</div>
+      <div class="tb-user-role">{{ role }} · {{ dept }}</div>
+    </div>
+    <div class="tb-clock">
+      <div id="tbTime">--:--:--</div>
+      <small id="tbDate"></small>
+    </div>
+    <nav class="tb-nav">
+      <a href="/dashboard" class="active">Dashboard</a>
+      <a href="/history">History</a>
+      <a href="/alerts">Alerts</a>
+      {% if role == 'admin' %}<a href="/admin">Admin</a>{% endif %}
+      
+<button onclick="downloadReport()" id="pdfBtn" style="
+  background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);
+  color:#f59e0b;font-family:'Orbitron',monospace;font-size:.6rem;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;padding:7px 16px;border-radius:2px;
+  cursor:pointer;transition:.2s;" onmouseover="this.style.background='rgba(245,158,11,.2)'"
+  onmouseout="this.style.background='rgba(245,158,11,.1)'">
+  ⬇ PDF REPORT
+</button>
+<a href="/logout" class="logout">Sign out</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ═══ PAGE ═══ -->
+<div class="page">
+
+  <!-- Machine Tabs -->
+  <div class="machine-tabs">
+    {% for mid, m in machines.items() %}
+    <button class="mtab {% if loop.first %}active{% endif %} {% if m.status=='maintenance' %}maint{% endif %}"
+      data-id="{{ mid }}" onclick="selectMachine('{{ mid }}')">
+      {{ mid }} · {{ m.name }} · {{ m.capacity }}
+      {% if m.status=='maintenance' %} [MAINTENANCE]{% endif %}
+    </button>
+    {% endfor %}
+  </div>
+
+  <div class="layout">
+
+    <!-- ══ LEFT COLUMN ══ -->
+    <div style="display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Turbine Card -->
+      <div class="card turbine-card">
+        <div class="card-header">
+          <div class="card-title" id="machineTitle">TG-01 · TURBO GENERATOR UNIT 1 · 500 MW</div>
+          <div class="card-badge">
+            <span class="dot-live"></span>
+            LIVE · TICK <span id="tickNo">0</span>
+          </div>
+        </div>
+
+        <!-- SVG Turbine Engineering Drawing -->
+        <div class="turbine-svg-wrap">
+          <svg viewBox="0 0 900 240" width="100%" height="220" id="turbineSvg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Grid pattern -->
+              <pattern id="engGrid" width="30" height="30" patternUnits="userSpaceOnUse">
+                <path d="M30 0L0 0 0 30" fill="none" stroke="#0a1d2e" stroke-width=".8"/>
+              </pattern>
+              <!-- Steam flow gradient -->
+              <linearGradient id="steamGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#f59e0b" stop-opacity=".6"/>
+                <stop offset="60%" stop-color="#06b6d4" stop-opacity=".4"/>
+                <stop offset="100%" stop-color="#06b6d4" stop-opacity=".1"/>
+              </linearGradient>
+              <!-- Glow filter -->
+              <filter id="glowA" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glowB" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <!-- Bearing glow -->
+              <radialGradient id="brgGreen" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#10b981" stop-opacity="1"/>
+                <stop offset="100%" stop-color="#10b981" stop-opacity=".2"/>
+              </radialGradient>
+              <radialGradient id="brgRed" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ef4444" stop-opacity="1"/>
+                <stop offset="100%" stop-color="#ef4444" stop-opacity=".2"/>
+              </radialGradient>
+              <!-- Arrow marker -->
+              <marker id="sArr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6Z" fill="#f59e0b" opacity=".5"/>
+              </marker>
+              <marker id="sArrBlue" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6Z" fill="#06b6d4" opacity=".4"/>
+              </marker>
+            </defs>
+
+            <!-- Background -->
+            <rect width="900" height="240" fill="#050e17"/>
+            <rect width="900" height="240" fill="url(#engGrid)" opacity=".8"/>
+
+            <!-- Steam inlet pipe (left) -->
+            <rect x="0" y="95" width="70" height="50" rx="3" fill="#0a1d2e" stroke="#1c3045" stroke-width="1.5"/>
+            <rect x="0" y="100" width="68" height="40" fill="#080f18"/>
+            <!-- Steam inlet label -->
+            <text x="35" y="112" text-anchor="middle" fill="#5a9ec2" font-size="7" font-family="JetBrains Mono,monospace" font-weight="500">STEAM</text>
+            <text x="35" y="122" text-anchor="middle" fill="#5a9ec2" font-size="7" font-family="JetBrains Mono,monospace">INLET</text>
+            <text x="35" y="132" text-anchor="middle" fill="#f59e0b" font-size="7" font-family="JetBrains Mono,monospace">540°C</text>
+
+            <!-- Exhaust pipe (right) -->
+            <rect x="830" y="95" width="70" height="50" rx="3" fill="#0a1d2e" stroke="#1c3045" stroke-width="1.5"/>
+            <rect x="832" y="100" width="68" height="40" fill="#080f18"/>
+            <text x="865" y="112" text-anchor="middle" fill="#5a9ec2" font-size="7" font-family="JetBrains Mono,monospace">EXHAUST</text>
+            <text x="865" y="122" text-anchor="middle" fill="#5a9ec2" font-size="7" font-family="JetBrains Mono,monospace">CONDENSER</text>
+
+            <!-- Main casing outer -->
+            <rect x="68" y="45" width="764" height="150" rx="10" fill="#0a1d2e" stroke="#1c3045" stroke-width="2"/>
+            <!-- Casing inner shadow top -->
+            <rect x="70" y="47" width="760" height="12" rx="6" fill="#0d2235" opacity=".7"/>
+
+            <!-- Steam flow arrows (top) -->
+            <line x1="72" y1="68" x2="826" y2="68"
+              stroke="url(#steamGrad)" stroke-width="1.5"
+              marker-end="url(#sArrBlue)" stroke-dasharray="16,8"/>
+            <text x="450" y="62" text-anchor="middle" fill="#5a9ec2" font-size="7.5"
+              font-family="JetBrains Mono,monospace" letter-spacing="4">STEAM FLOW ──────────────────────→</text>
+
+            <!-- Animated steam particles -->
+            <circle r="2.4" fill="#f59e0b" opacity=".85" filter="url(#glowA)">
+              <animateMotion path="M72,68 L826,68" dur="2.2s" repeatCount="indefinite"/>
+            </circle>
+            <circle r="2" fill="#06b6d4" opacity=".8" filter="url(#glowA)">
+              <animateMotion path="M72,68 L826,68" dur="2.2s" begin="0.7s" repeatCount="indefinite"/>
+            </circle>
+            <circle r="1.8" fill="#22d3ee" opacity=".7" filter="url(#glowA)">
+              <animateMotion path="M72,68 L826,68" dur="2.2s" begin="1.4s" repeatCount="indefinite"/>
+            </circle>
+
+            <!-- ════ HP STAGE ════ -->
+            <!-- Outer casing -->
+            <ellipse cx="195" cy="120" rx="72" ry="68" fill="#0c1e2e" stroke="#1a3a58" stroke-width="2"/>
+            <!-- Stage ring -->
+            <ellipse cx="195" cy="120" rx="58" ry="54" fill="#0a1825" stroke="#152e48" stroke-width="1.5"/>
+            <!-- Rotor disc -->
+            <ellipse cx="195" cy="120" rx="38" ry="36" fill="#0d2035" stroke="#1e4060" stroke-width="1.5"/>
+
+            <!-- HP Blades (8 blades, animated) -->
+            <g id="hpRotor">
+              <g id="hpBlades">
+                <line x1="195" y1="84" x2="195" y2="120" stroke="#1e5a8a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="222" y1="93" x2="195" y2="120" stroke="#1a4a7a" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="231" y1="120" x2="195" y2="120" stroke="#1e5a8a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="222" y1="147" x2="195" y2="120" stroke="#1a4a7a" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="195" y1="156" x2="195" y2="120" stroke="#1e5a8a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="168" y1="147" x2="195" y2="120" stroke="#1a4a7a" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="159" y1="120" x2="195" y2="120" stroke="#1e5a8a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="168" y1="93" x2="195" y2="120" stroke="#1a4a7a" stroke-width="3.5" stroke-linecap="round"/>
+              </g>
+            </g>
+            <!-- Hub -->
+            <circle cx="195" cy="120" r="9" fill="#0a1825" stroke="#2a5a8a" stroke-width="2"/>
+            <circle cx="195" cy="120" r="3" fill="#1e4a7a"/>
+            <!-- HP Label -->
+            <text x="195" y="205" text-anchor="middle" fill="#7fc4e8" font-size="9" font-family="JetBrains Mono,monospace" font-weight="700" letter-spacing="2">HP STAGE</text>
+            <text x="195" y="216" text-anchor="middle" fill="#5a8aac" font-size="7" font-family="JetBrains Mono,monospace">HIGH PRESSURE</text>
+
+            <!-- ════ IP STAGE ════ -->
+            <ellipse cx="450" cy="120" rx="90" ry="82" fill="#0c1e2e" stroke="#1a3a58" stroke-width="2"/>
+            <ellipse cx="450" cy="120" rx="72" ry="65" fill="#0a1825" stroke="#152e48" stroke-width="1.5"/>
+            <ellipse cx="450" cy="120" rx="48" ry="44" fill="#0d2035" stroke="#1e4060" stroke-width="1.5"/>
+            <g id="ipRotor">
+              <g id="ipBlades">
+                <line x1="450" y1="76" x2="450" y2="120" stroke="#1e5a8a" stroke-width="5" stroke-linecap="round"/>
+                <line x1="481" y1="89" x2="450" y2="120" stroke="#1a4a7a" stroke-width="4.5" stroke-linecap="round"/>
+                <line x1="494" y1="120" x2="450" y2="120" stroke="#1e5a8a" stroke-width="5" stroke-linecap="round"/>
+                <line x1="481" y1="151" x2="450" y2="120" stroke="#1a4a7a" stroke-width="4.5" stroke-linecap="round"/>
+                <line x1="450" y1="164" x2="450" y2="120" stroke="#1e5a8a" stroke-width="5" stroke-linecap="round"/>
+                <line x1="419" y1="151" x2="450" y2="120" stroke="#1a4a7a" stroke-width="4.5" stroke-linecap="round"/>
+                <line x1="406" y1="120" x2="450" y2="120" stroke="#1e5a8a" stroke-width="5" stroke-linecap="round"/>
+                <line x1="419" y1="89" x2="450" y2="120" stroke="#1a4a7a" stroke-width="4.5" stroke-linecap="round"/>
+              </g>
+            </g>
+            <circle cx="450" cy="120" r="12" fill="#0a1825" stroke="#2a5a8a" stroke-width="2"/>
+            <circle cx="450" cy="120" r="4" fill="#1e4a7a"/>
+            <text x="450" y="218" text-anchor="middle" fill="#7fc4e8" font-size="9" font-family="JetBrains Mono,monospace" font-weight="700" letter-spacing="2">IP STAGE</text>
+            <text x="450" y="229" text-anchor="middle" fill="#5a8aac" font-size="7" font-family="JetBrains Mono,monospace">INTERMEDIATE PRESSURE</text>
+
+            <!-- ════ LP STAGE ════ -->
+            <ellipse cx="705" cy="120" rx="72" ry="68" fill="#0c1e2e" stroke="#1a3a58" stroke-width="2"/>
+            <ellipse cx="705" cy="120" rx="58" ry="54" fill="#0a1825" stroke="#152e48" stroke-width="1.5"/>
+            <ellipse cx="705" cy="120" rx="38" ry="36" fill="#0d2035" stroke="#1e4060" stroke-width="1.5"/>
+            <g id="lpRotor">
+              <g id="lpBlades">
+                <line x1="705" y1="84" x2="705" y2="120" stroke="#1e5a8a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="732" y1="93" x2="705" y2="120" stroke="#1a4a7a" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="741" y1="120" x2="705" y2="120" stroke="#1e5a8a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="732" y1="147" x2="705" y2="120" stroke="#1a4a7a" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="705" y1="156" x2="705" y2="120" stroke="#1e5a8a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="678" y1="147" x2="705" y2="120" stroke="#1a4a7a" stroke-width="3.5" stroke-linecap="round"/>
+                <line x1="669" y1="120" x2="705" y2="120" stroke="#1e5a8a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="678" y1="93" x2="705" y2="120" stroke="#1a4a7a" stroke-width="3.5" stroke-linecap="round"/>
+              </g>
+            </g>
+            <circle cx="705" cy="120" r="9" fill="#0a1825" stroke="#2a5a8a" stroke-width="2"/>
+            <circle cx="705" cy="120" r="3" fill="#1e4a7a"/>
+            <text x="705" y="205" text-anchor="middle" fill="#7fc4e8" font-size="9" font-family="JetBrains Mono,monospace" font-weight="700" letter-spacing="2">LP STAGE</text>
+            <text x="705" y="216" text-anchor="middle" fill="#5a8aac" font-size="7" font-family="JetBrains Mono,monospace">LOW PRESSURE</text>
+
+            <!-- ════ SHAFT ════ -->
+            <line x1="0" y1="120" x2="900" y2="120" stroke="#0f2035" stroke-width="8"/>
+            <line x1="0" y1="120" x2="900" y2="120" stroke="#1a3a5a" stroke-width="2" stroke-dasharray="20,10">
+              <animate attributeName="stroke-dashoffset" from="0" to="-30" dur="1.1s" repeatCount="indefinite"/>
+            </line>
+
+            <!-- ════ BEARINGS ════ -->
+            <!-- Left bearing -->
+            <circle cx="118" cy="120" r="14" fill="#060f18" stroke="#10b981" stroke-width="1.5" filter="url(#glowA)" id="brgL"/>
+            <circle cx="118" cy="120" r="8" fill="#10b981" opacity=".15" id="brgLinner"/>
+            <text x="118" y="147" text-anchor="middle" fill="#3fd497" font-size="6.5" font-family="JetBrains Mono,monospace">BRG-L</text>
+            <!-- Right bearing -->
+            <circle cx="782" cy="120" r="14" fill="#060f18" stroke="#10b981" stroke-width="1.5" filter="url(#glowA)" id="brgR"/>
+            <circle cx="782" cy="120" r="8" fill="#10b981" opacity=".15" id="brgRinner"/>
+            <text x="782" y="147" text-anchor="middle" fill="#3fd497" font-size="6.5" font-family="JetBrains Mono,monospace">BRG-R</text>
+
+            <!-- Vibration wave at bottom -->
+            <path id="vibWave"
+              d="M68 232 Q130 224 195 232 T310 232 T450 232 T590 232 T705 232 T832 232"
+              stroke="#06b6d4" stroke-width="1.5" fill="none" opacity=".45"/>
+            <text x="44" y="236" fill="#5a8aac" font-size="7" font-family="JetBrains Mono,monospace">VIB→</text>
+
+            <!-- UPES BHEL watermark -->
+            <text x="450" y="13" text-anchor="middle"
+              fill="#0d2035" font-size="7" font-family="JetBrains Mono,monospace" letter-spacing="3">
+              UPES × BHEL HEEP HARIDWAR — VOCATIONAL TRAINING 2026 — AI/ML DIGITAL TWIN SYSTEM
+            </text>
+          </svg>
+        </div>
+
+        <!-- Gauges Strip -->
+        <div class="gauges-strip">
+          <div class="gauge-cell">
+            <div class="gauge-name">Steam Temp</div>
+            <canvas id="gc1" width="100" height="90"></canvas>
+            <div class="gauge-readout" id="gr1">--</div>
+            <div class="gauge-unit">°C</div>
+            <canvas id="spark1" width="90" height="18" class="spark"></canvas>
+          </div>
+          <div class="gauge-cell">
+            <div class="gauge-name">Vibration</div>
+            <canvas id="gc2" width="100" height="90"></canvas>
+            <div class="gauge-readout" id="gr2">--</div>
+            <div class="gauge-unit">mm/s</div>
+            <canvas id="spark2" width="90" height="18" class="spark"></canvas>
+          </div>
+          <div class="gauge-cell">
+            <div class="gauge-name">Bearing Temp</div>
+            <canvas id="gc3" width="100" height="90"></canvas>
+            <div class="gauge-readout" id="gr3">--</div>
+            <div class="gauge-unit">°C</div>
+            <canvas id="spark3" width="90" height="18" class="spark"></canvas>
+          </div>
+          <div class="gauge-cell">
+            <div class="gauge-name">Rotor Speed</div>
+            <canvas id="gc4" width="100" height="90"></canvas>
+            <div class="gauge-readout" id="gr4">--</div>
+            <div class="gauge-unit">RPM</div>
+            <canvas id="spark4" width="90" height="18" class="spark"></canvas>
+          </div>
+        </div>
+
+        <!-- Status + Prob -->
+        <div class="turbine-status">
+          <div class="status-pill safe" id="statusPill">
+            <span>●</span>
+            <span id="statusText">SAFE — NORMAL OPERATION</span>
+          </div>
+          <div class="prob-mini">
+            <span style="font-family:var(--mono);font-size:.62rem;color:var(--dim)">AI FAILURE PROB</span>
+            <div class="prob-bar-sm"><div class="prob-fill-sm" id="probFill" style="width:0%"></div></div>
+            <span class="prob-pct" id="probPct">0.0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sensor Table + Chart + Log -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <!-- Sensors -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Live Sensor Data</div>
+            <div class="card-badge"><span class="dot-live"></span><span id="sTime">--:--:--</span></div>
+          </div>
+          <div class="card-body" style="padding:8px 12px">
+            <table class="sensor-table" id="sensorTable"></table>
+          </div>
+        </div>
+        <!-- Chart + Log -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Vibration + Bearing Trend</div>
+            </div>
+            <div class="card-body">
+              <div class="chart-area"><canvas id="tChart"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">System Event Log</div>
+            </div>
+            <div class="card-body" style="padding:8px 12px">
+              <div class="event-log" id="evLog"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RIGHT COLUMN ══ -->
+    <div class="right-stack">
+
+      <!-- RUL -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Remaining Useful Life</div></div>
+        <div class="card-body">
+          <div class="rul-number" id="rulNum">--</div>
+          <div class="rul-desc">Days Estimated</div>
+          <div class="rul-status" id="rulSt">Calculating...</div>
+          <div class="rul-track"><div class="rul-fill" id="rulFill" style="width:100%;background:var(--green)"></div></div>
+          <div class="rul-hint">Based on vibration pattern & bearing temperature degradation trend</div>
+        </div>
+      </div>
+
+      <!-- Cost Savings -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Cost Savings Analysis</div></div>
+        <div class="card-body">
+          <div class="stat-rows">
+            <div class="stat-row-item"><span class="stat-row-label">Unplanned Downtime</span><span class="stat-row-val">₹12L/day</span></div>
+            <div class="stat-row-item"><span class="stat-row-label">Planned Maintenance</span><span class="stat-row-val">₹2.5L</span></div>
+            <div class="stat-row-item"><span class="stat-row-label">Warnings Issued</span><span class="stat-row-val green" id="warnCount">0</span></div>
+          </div>
+          <div class="savings-highlight">
+            <div class="savings-label">Estimated Session Savings</div>
+            <div class="savings-amount" id="savingsVal">₹ 0L</div>
+          </div>
+          <div style="font-size:.58rem;color:var(--dimmer);font-family:var(--mono);margin-top:8px">*NTPC/CEA benchmarks · 500MW turbine unit</div>
+        </div>
+      </div>
+
+      <!-- Voice Alert -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">Voice Alert System</div></div>
+        <div class="card-body">
+          <div style="font-size:.68rem;color:var(--dim);line-height:1.8">AI-powered voice notifications for control room operators. Hands-free failure detection without constant screen monitoring.</div>
+          <button class="voice-toggle" id="vBtn" onclick="toggleVoice()">🔇 Enable Voice Alerts</button>
+          <div class="voice-data">
+            Status: <b id="vStatus">Disabled</b><br>
+            Last Alert: <b id="vLast">None</b><br>
+            Alert Count: <b id="vCount">0</b><br>
+            Session Uptime: <b id="vUptime">00:00</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Info -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">System Information</div></div>
+        <div class="card-body">
+          <div class="sysinfo">
+            <div><span class="key">MODEL      </span> <span class="val">Random Forest Classifier</span></div>
+            <div><span class="key">LIBRARY    </span> <span class="val">scikit-learn 1.8</span></div>
+            <div><span class="key">FEATURES   </span> <span class="val">7 Sensor Parameters</span></div>
+            <div><span class="key">TRAIN SET   </span> <span class="val">{{ metrics.n_samples or 5000 }} Samples</span></div>
+            <div><span class="key">ACCURACY   </span> <span class="val ok">{{ "%.1f"|format((metrics.accuracy or 0.977)*100) }}%</span></div>
+            <div><span class="key">CV SCORE   </span> <span class="val ok">{{ "%.1f"|format((metrics.cv_mean or 0.98)*100) }}% (5-fold)</span></div>
+            <div><span class="key">BACKEND    </span> <span class="val">Flask · Python 3.11</span></div>
+            <div><span class="key">PROJECT    </span> <span class="val warn">UPES × BHEL 2026</span></div>
+            <div><span class="key">LOCATION   </span> <span class="val">HEEP Haridwar, UK</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom strip -->
+  <div class="bottom-strip">
+    <div class="bstrip-item"><div class="bstrip-val" id="bs1">--</div><div class="bstrip-label">Steam Temp °C</div></div>
+    <div class="bstrip-item"><div class="bstrip-val" id="bs2">--</div><div class="bstrip-label">Pressure kg/cm²</div></div>
+    <div class="bstrip-item"><div class="bstrip-val" id="bs3">--</div><div class="bstrip-label">Vibration mm/s</div></div>
+    <div class="bstrip-item"><div class="bstrip-val" id="bs4">--</div><div class="bstrip-label">Bearing Temp °C</div></div>
+    <div class="bstrip-item"><div class="bstrip-val" id="bs5">--</div><div class="bstrip-label">Rotor RPM</div></div>
+    <div class="bstrip-item"><div class="bstrip-val" id="bs6">--</div><div class="bstrip-label">Oil Pressure</div></div>
+    <div class="bstrip-item"><div class="bstrip-val" id="bs7">--</div><div class="bstrip-label">Load %</div></div>
+  </div>
+</div>
+
+<div class="footer">
+  <span class="accent">BHEL DIGITAL TWIN v2.0</span> ·
+  HEEP Haridwar · AI-Powered Predictive Maintenance ·
+  <span class="accent">Random Forest Classifier</span> · Flask · Python ·
+  Vocational Training Project — <span class="accent">UPES B.Tech CS (AI/ML)</span> × BHEL 2026
+</div>
+
+<script>
+// ══════════════════════════════════
+// SPARKLINES (mini gauge trends)
+// ══════════════════════════════════
+const sparkHist = {spark1:[], spark2:[], spark3:[], spark4:[]};
+function drawSpark(id, val, color){
+  const hist = sparkHist[id];
+  hist.push(val);
+  if(hist.length > 24) hist.shift();
+  const c = document.getElementById(id);
+  if(!c) return;
+  const g = c.getContext("2d");
+  const W=c.width, H=c.height;
+  g.clearRect(0,0,W,H);
+  if(hist.length < 2) return;
+  const mn = Math.min(...hist), mx = Math.max(...hist);
+  const range = (mx-mn)||1;
+  g.beginPath();
+  hist.forEach((v,i)=>{
+    const x = (i/(hist.length-1))*W;
+    const y = H - ((v-mn)/range)*(H-4) - 2;
+    i===0 ? g.moveTo(x,y) : g.lineTo(x,y);
+  });
+  g.strokeStyle = color; g.lineWidth = 1.3; g.lineJoin="round"; g.stroke();
+  // last point dot
+  const lastX=W, lastY = H - ((hist[hist.length-1]-mn)/range)*(H-4) - 2;
+  g.beginPath(); g.arc(lastX-1,lastY,1.6,0,Math.PI*2); g.fillStyle=color; g.fill();
+}
+
+// ══════════════════════════════════
+// GAUGE
+// ══════════════════════════════════
+function drawGauge(id, val, mn, mx, warn, inv){
+  const c = document.getElementById(id);
+  if(!c) return;
+  const g = c.getContext("2d");
+  const W=100, H=90, cx=50, cy=54, R=38;
+  g.clearRect(0,0,W,H);
+  const sa=Math.PI*.75, ea=Math.PI*2.25;
+  const pct = Math.min(Math.max((val-mn)/(mx-mn),0),1);
+  const va = sa+pct*(ea-sa);
+  const bad = inv ? val < warn : val > warn;
+
+  // Track
+  g.beginPath(); g.arc(cx,cy,R,sa,ea);
+  g.strokeStyle="#0c1e2e"; g.lineWidth=9; g.stroke();
+
+  // Value arc
+  g.beginPath(); g.arc(cx,cy,R,sa,va);
+  const grad=g.createLinearGradient(10,0,90,0);
+  grad.addColorStop(0,"#10b981"); grad.addColorStop(.55,"#f59e0b"); grad.addColorStop(1,"#ef4444");
+  g.strokeStyle = bad ? "#ef4444" : grad;
+  g.lineWidth=9; g.lineCap="round"; g.stroke();
+
+  // Tick marks
+  for(let i=0;i<=10;i++){
+    const a=sa+(i/10)*(ea-sa);
+    const len=i%5===0?6:3;
+    g.beginPath();
+    g.moveTo(cx+Math.cos(a)*(R-len), cy+Math.sin(a)*(R-len));
+    g.lineTo(cx+Math.cos(a)*(R+2),   cy+Math.sin(a)*(R+2));
+    g.strokeStyle = i%5===0 ? "#1a3a58" : "#0f2035";
+    g.lineWidth=1.2; g.stroke();
+  }
+
+  // Needle
+  g.beginPath(); g.moveTo(cx,cy);
+  g.lineTo(cx+Math.cos(va)*(R-12), cy+Math.sin(va)*(R-12));
+  g.strokeStyle = bad?"#ef4444":"#f59e0b";
+  g.lineWidth=2.2; g.lineCap="round"; g.stroke();
+
+  // Hub
+  g.beginPath(); g.arc(cx,cy,5,0,Math.PI*2);
+  g.fillStyle="#050e17"; g.fill();
+  g.strokeStyle = bad?"#ef4444":"#f59e0b";
+  g.lineWidth=1.5; g.stroke();
+}
+
+// ══════════════════════════════════
+// SENSOR TABLE
+// ══════════════════════════════════
+const SM = [
+  {k:"steam_temp_C",        l:"Steam Temperature",  u:"°C",    mn:500,mx:600, w:560},
+  {k:"steam_pressure_kgcm2",l:"Steam Pressure",     u:"kg/cm²",mn:100,mx:190, w:145, inv:1},
+  {k:"vibration_mms",       l:"Vibration",          u:"mm/s",  mn:0,  mx:12,  w:5.5},
+  {k:"bearing_temp_C",      l:"Bearing Temperature",u:"°C",    mn:50, mx:100, w:82},
+  {k:"rpm",                 l:"Rotor Speed",        u:"RPM",   mn:2850,mx:3050,w:2920,inv:1},
+  {k:"oil_pressure_kgcm2",  l:"Oil Pressure",       u:"kg/cm²",mn:0,  mx:3,   w:1.4, inv:1},
+  {k:"load_percent",        l:"Load",               u:"%",     mn:0,  mx:100, w:0}
+];
+
+const tbl = document.getElementById("sensorTable");
+SM.forEach(s=>{
+  const tr=document.createElement("tr");
+  tr.innerHTML=`
+    <td class="s-label">${s.l}</td>
+    <td class="s-val-cell" id="sv-${s.k}">--</td>
+    <td class="s-unit-cell">${s.u}</td>
+    <td class="s-bar-cell"><div class="s-bar-bg"><div class="s-bar-fg" id="sb-${s.k}"></div></div></td>`;
+  tbl.appendChild(tr);
+});
+
+// ══════════════════════════════════
+// CHART
+// ══════════════════════════════════
+const ctx=document.getElementById("tChart").getContext("2d");
+const cd={labels:[],datasets:[
+  {label:"Vibration (mm/s)",data:[],borderColor:"#06b6d4",bg:"rgba(6,182,212,.06)",tension:.4,pointRadius:1.5,borderWidth:1.5,fill:true},
+  {label:"Bearing (°C÷10)",data:[],borderColor:"#f59e0b",backgroundColor:"rgba(245,158,11,.04)",tension:.4,pointRadius:1.5,borderWidth:1.5,fill:false}
+]};
+const tChart=new Chart(ctx,{type:"line",data:cd,options:{
+  responsive:true,maintainAspectRatio:false,animation:{duration:200},
+  plugins:{legend:{labels:{color:"#4a6a80",font:{size:9,family:"JetBrains Mono"}}}},
+  scales:{
+    x:{ticks:{color:"#2a4055",maxTicksLimit:5,font:{size:8}},grid:{color:"rgba(18,32,48,.9)"}},
+    y:{ticks:{color:"#2a4055",font:{size:8}},grid:{color:"rgba(18,32,48,.9)"}}
+  }
+}});
+
+// ══════════════════════════════════
+// EVENT LOG
+// ══════════════════════════════════
+const log=document.getElementById("evLog");
+function addLog(msg,type=""){
+  const d=document.createElement("div");
+  d.className=`log-line ${type}`;
+  d.innerHTML=`<span class="log-ts">${new Date().toLocaleTimeString()}</span><span class="log-msg">${msg}</span>`;
+  log.prepend(d);
+  while(log.children.length>14) log.removeChild(log.lastChild);
+}
+
+// ══════════════════════════════════
+// BLADE ANIMATION
+// ══════════════════════════════════
+let ang=0;
+(function spin(){
+  ang=(ang+1)%360;
+  [["hpBlades",195,120],["ipBlades",450,120],["lpBlades",705,120]].forEach(([id,cx,cy],i)=>{
+    const el=document.getElementById(id);
+    if(el) el.setAttribute("transform",`rotate(${ang+(i*60)},${cx},${cy})`);
+  });
+  requestAnimationFrame(spin);
+})();
+
+// ══════════════════════════════════
+// VOICE
+// ══════════════════════════════════
+let voiceOn=false,vCnt=0,warnCnt=0,savings=0,lastVoice=0;
+
+function toggleVoice(){
+  voiceOn=!voiceOn;
+  const b=document.getElementById("vBtn");
+  b.textContent=voiceOn?"🔊 Voice Alerts ACTIVE":"🔇 Enable Voice Alerts";
+  b.className=voiceOn?"voice-toggle active":"voice-toggle";
+  document.getElementById("vStatus").textContent=voiceOn?"ACTIVE":"Disabled";
+}
+function speak(m){
+  if(!voiceOn) return;
+  const now=Date.now();
+  if(now-lastVoice<8000) return;
+  lastVoice=now; vCnt++;
+  window.speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(m),{rate:.9}));
+  document.getElementById("vCount").textContent=vCnt;
+  document.getElementById("vLast").textContent=new Date().toLocaleTimeString();
+}
+
+// ══════════════════════════════════
+// MACHINE SELECT
+// ══════════════════════════════════
+let curMachine="TG-01",tick=0,lastStatus="SAFE";
+const machNames={"TG-01":"TG-01 · TURBO GENERATOR UNIT 1 · 500 MW","TG-02":"TG-02 · TURBO GENERATOR UNIT 2 · 500 MW","TG-03":"TG-03 · TURBO GENERATOR UNIT 3 · 210 MW"};
+
+function selectMachine(id){
+  curMachine=id;
+  document.querySelectorAll(".mtab").forEach(t=>t.classList.toggle("active",t.dataset.id===id));
+  document.getElementById("machineTitle").textContent=machNames[id]||id;
+  cd.labels=[];cd.datasets.forEach(d=>d.data=[]);tChart.update();tick=0;
+  Object.keys(sparkHist).forEach(k=>sparkHist[k]=[]);
+}
+
+// ══════════════════════════════════
+// CLOCK
+// ══════════════════════════════════
+function clock(){
+  const n=new Date();
+  document.getElementById("tbTime").textContent=n.toLocaleTimeString();
+  document.getElementById("tbDate").textContent=n.toLocaleDateString("en-IN",{weekday:"short",day:"2-digit",month:"short",year:"numeric"});
+}
+setInterval(clock,1000); clock();
+
+let startT=Date.now();
+setInterval(()=>{
+  const s=Math.floor((Date.now()-startT)/1000);
+  document.getElementById("vUptime").textContent=
+    String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+},1000);
+
+// ══════════════════════════════════
+// SUMMARY
+// ══════════════════════════════════
+async function summary(){
+  try{
+    const d=await fetch("/api/summary",{credentials:"include"}).then(r=>r.json());
+    document.getElementById("statOnline").textContent=d.online;
+    document.getElementById("statMaint").textContent=d.maintenance;
+    document.getElementById("statAlerts").textContent=d.active_alerts;
+  }catch(e){}
+}
+
+// ══════════════════════════════════
+// MAIN POLL
+// ══════════════════════════════════
+async function poll(){
+  try{
+    const r=await fetch("/api/live/"+curMachine,{credentials:"include"});
+    if(!r.ok) return;
+    const d=await r.json();
+    tick++;
+    document.getElementById("tickNo").textContent=tick;
+    document.getElementById("sTime").textContent=d.timestamp||"--";
+
+    if(d.status==="MAINTENANCE"){
+      document.getElementById("statusPill").className="status-pill maint";
+      document.getElementById("statusText").textContent="MACHINE OFFLINE — MAINTENANCE";
+      return;
+    }
+
+    const sv=d.sensors||d;
+
+    // Sensor table
+    SM.forEach(s=>{
+      const v=sv[s.k]; if(v===undefined) return;
+      const ve=document.getElementById("sv-"+s.k);
+      const be=document.getElementById("sb-"+s.k);
+      if(ve) ve.textContent=v;
+      const pct=Math.min(Math.max((v-s.mn)/(s.mx-s.mn),0),1)*100;
+      const bad=s.inv?v<s.w:v>s.w;
+      if(be){be.style.width=pct+"%";be.style.background=bad?"#ef4444":"#06b6d4";}
+      if(ve) ve.style.color=bad?"#ef4444":"#e2eaf2";
+    });
+
+    // Bottom strip
+    const bs=["steam_temp_C","steam_pressure_kgcm2","vibration_mms","bearing_temp_C","rpm","oil_pressure_kgcm2","load_percent"];
+    bs.forEach((k,i)=>{ const el=document.getElementById("bs"+(i+1)); if(el) el.textContent=sv[k]||"--"; });
+
+    // Gauges
+    drawGauge("gc1",sv.steam_temp_C,500,600,560);
+    drawGauge("gc2",sv.vibration_mms,0,12,5.5);
+    drawGauge("gc3",sv.bearing_temp_C,50,100,82);
+    drawGauge("gc4",sv.rpm,2800,3100,2920,1);
+    drawSpark("spark1",sv.steam_temp_C,"#f59e0b");
+    drawSpark("spark2",sv.vibration_mms,"#06b6d4");
+    drawSpark("spark3",sv.bearing_temp_C,"#f59e0b");
+    drawSpark("spark4",sv.rpm,"#22d3ee");
+    ["gr1","gr2","gr3","gr4"].forEach((id,i)=>{
+      const el=document.getElementById(id);
+      if(el) el.textContent=[sv.steam_temp_C,sv.vibration_mms,sv.bearing_temp_C,sv.rpm][i];
+    });
+
+    // Chart
+    cd.labels.push(new Date().toLocaleTimeString());
+    cd.datasets[0].data.push(sv.vibration_mms);
+    cd.datasets[1].data.push(+(sv.bearing_temp_C/10).toFixed(2));
+    if(cd.labels.length>30){cd.labels.shift();cd.datasets.forEach(ds=>ds.data.shift());}
+    tChart.update();
+
+    // Prob
+    const prob=d.failure_probability||0;
+    document.getElementById("probFill").style.width=prob+"%";
+    document.getElementById("probPct").textContent=prob.toFixed(1)+"%";
+
+    // Status
+    const isRisk=d.status==="FAILURE_RISK";
+    document.getElementById("statusPill").className=`status-pill ${isRisk?"risk":"safe"}`;
+    document.getElementById("statusText").textContent=isRisk?"⚠ FAILURE RISK — MAINTENANCE REQUIRED":"✓ SAFE — NORMAL OPERATION";
+
+    // Bearings
+    const bc=isRisk?"#ef4444":"#10b981";
+    const bsc=isRisk?"rgba(239,68,68,.15)":"rgba(16,185,129,.15)";
+    ["brgL","brgR"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.setAttribute("stroke",bc);
+    });
+    ["brgLinner","brgRinner"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.setAttribute("fill",bsc);
+    });
+    const waveEl=document.getElementById("vibWave");
+    if(waveEl) waveEl.setAttribute("stroke",isRisk?"#ef4444":"#06b6d4");
+
+    if(isRisk && lastStatus!=="FAILURE_RISK"){
+      addLog(`⚠ ${curMachine}: Vib ${sv.vibration_mms}mm/s · Brg ${sv.bearing_temp_C}°C — CRITICAL`,"warn");
+      warnCnt++; savings+=9.5;
+      document.getElementById("warnCount").textContent=warnCnt;
+      document.getElementById("savingsVal").textContent="₹ "+savings.toFixed(1)+"L";
+      speak(`Warning! ${curMachine} failure risk detected. Maintenance required immediately.`);
+    }
+    if(!isRisk && lastStatus==="FAILURE_RISK")
+      addLog(`✓ ${curMachine}: Returned to normal operating parameters`,"ok");
+    lastStatus=d.status;
+
+    // RUL
+    const rul={90:{l:"EXCELLENT CONDITION",c:"#10b981",p:95},45:{l:"MONITOR CLOSELY",c:"#f59e0b",p:55},14:{l:"SCHEDULE MAINTENANCE",c:"#f59e0b",p:22},3:{l:"URGENT — IMMINENT FAILURE",c:"#ef4444",p:5}};
+    const rv=rul[d.rul_days]||rul[90];
+    document.getElementById("rulNum").textContent=d.rul_days||90;
+    const rse=document.getElementById("rulSt");
+    if(rse){rse.textContent=rv.l;rse.style.color=rv.c;}
+    const rfe=document.getElementById("rulFill");
+    if(rfe){rfe.style.width=rv.p+"%";rfe.style.background=rv.c;}
+
+  }catch(e){ addLog("Connection error — retrying..."); }
+}
+
+setInterval(poll,1500);
+setInterval(summary,3000);
+poll(); summary();
+
+// ══════════════════════════════════
+// HUD CORNER BRACKETS (auto-inject)
+// ══════════════════════════════════
+document.querySelectorAll(".card").forEach(c=>{
+  const tl=document.createElement("span"); tl.className="corner-hud c-tl";
+  const br=document.createElement("span"); br.className="corner-hud c-br";
+  c.appendChild(tl); c.appendChild(br);
+});
+</script>
+
+<script>
+function downloadReport(){
+  const btn=document.getElementById('pdfBtn');
+  btn.textContent='⏳ GENERATING...';btn.disabled=true;
+  const machine=document.querySelector('.mtab.active')?.dataset?.id||'TG-01';
+  fetch('/api/report/'+machine,{credentials:'include'})
+    .then(r=>{if(!r.ok)throw new Error('Failed');return r.blob();})
+    .then(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);
+      a.download='BHEL_'+machine+'_Report.pdf';a.click();
+      btn.textContent='⬇ PDF REPORT';btn.disabled=false;})
+    .catch(e=>{alert('PDF error: '+e.message);btn.textContent='⬇ PDF REPORT';btn.disabled=false;});
+}
+</script>
+</body>
+</html>

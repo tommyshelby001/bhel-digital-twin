@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BHEL HEEP — Secure Access Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#060c14; --panel:#0d1826; --panel-hi:#12233a;
+  --rim:#254058; --rim-bright:#3a6484;
+  --amber:#ffb020; --amber-soft:rgba(255,176,32,.14);
+  --cyan:#22d3ee; --cyan-soft:rgba(34,211,238,.12);
+  --green:#34e2a0;
+  --red:#ff5d6c;
+  --text:#e7eef6; --text-dim:#a9c1d6; --text-faint:#7691aa;
+  --display:'Orbitron',monospace; --body:'Inter',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--ink); color:var(--text); font-family:var(--body);
+  min-height:100vh; display:flex; overflow:hidden; position:relative;
+}
+
+/* ambient glow blobs */
+.glow-blob{position:fixed;border-radius:50%;filter:blur(90px);opacity:.35;pointer-events:none;z-index:0}
+.glow-1{width:520px;height:520px;background:radial-gradient(circle,rgba(255,176,32,.35),transparent 70%);top:-160px;left:-120px;animation:drift1 18s ease-in-out infinite}
+.glow-2{width:600px;height:600px;background:radial-gradient(circle,rgba(34,211,238,.28),transparent 70%);bottom:-200px;right:-160px;animation:drift2 22s ease-in-out infinite}
+@keyframes drift1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,60px)}}
+@keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-50px,-40px)}}
+
+/* grid + scanline */
+body::before{
+  content:''; position:fixed; inset:0; z-index:0;
+  background-image:
+    linear-gradient(rgba(34,211,238,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34,211,238,.05) 1px, transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse 90% 90% at 50% 50%, #000 40%, transparent 100%);
+}
+.scanline{
+  position:fixed; inset:0; z-index:5; pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0px, transparent 1px, transparent 3px);
+}
+.scan-sweep{
+  position:fixed; left:0; right:0; height:140px; z-index:4; pointer-events:none;
+  background:linear-gradient(180deg, transparent, rgba(34,211,238,.05), transparent);
+  animation:sweep 7s linear infinite;
+}
+@keyframes sweep{0%{top:-140px}100%{top:100%}}
+
+/* ═══════ LEFT: HUD SHOWCASE ═══════ */
+.hud-side{
+  flex:1.15; position:relative; z-index:2; display:flex; flex-direction:column;
+  justify-content:center; padding:60px 70px;
+  border-right:1px solid var(--rim);
+  background:linear-gradient(180deg, rgba(13,24,38,.4), rgba(6,12,20,.4));
+}
+.hud-eyebrow{
+  font-family:var(--mono); font-size:.72rem; color:var(--cyan);
+  letter-spacing:.25em; text-transform:uppercase; margin-bottom:14px;
+  display:flex; align-items:center; gap:10px;
+}
+.hud-eyebrow::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,50%,100%{opacity:1}25%,75%{opacity:.3}}
+.hud-title{
+  font-family:var(--display); font-weight:900; font-size:2.6rem;
+  color:var(--text); line-height:1.15; letter-spacing:.01em; margin-bottom:8px;
+}
+.hud-title span{color:var(--amber)}
+.hud-sub{
+  font-size:.95rem; color:var(--text-dim); max-width:460px; line-height:1.7; margin-bottom:40px;
+}
+
+/* turbine hud graphic */
+.turbine-hud{position:relative;width:100%;max-width:520px;margin-bottom:36px}
+.turbine-hud svg{width:100%;height:auto;display:block}
+.corner{position:absolute;width:22px;height:22px;border:2px solid var(--rim-bright)}
+.corner.tl{top:-8px;left:-8px;border-right:none;border-bottom:none}
+.corner.tr{top:-8px;right:-8px;border-left:none;border-bottom:none}
+.corner.bl{bottom:-8px;left:-8px;border-right:none;border-top:none}
+.corner.br{bottom:-8px;right:-8px;border-left:none;border-top:none}
+
+.stat-strip{display:flex;gap:28px;flex-wrap:wrap}
+.stat-chip{min-width:110px}
+.stat-chip .n{font-family:var(--mono);font-size:1.35rem;font-weight:700;color:var(--text)}
+.stat-chip .n.g{color:var(--green)} .stat-chip .n.c{color:var(--cyan)} .stat-chip .n.a{color:var(--amber)}
+.stat-chip .l{font-size:.6rem;color:var(--text-faint);letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+
+/* ═══════ RIGHT: LOGIN CARD ═══════ */
+.form-side{
+  flex:1; position:relative; z-index:2; display:flex; align-items:center; justify-content:center;
+  padding:40px;
+}
+.login-card{
+  width:100%; max-width:400px;
+  background:rgba(15,26,42,.72);
+  border:1px solid var(--rim-bright);
+  border-radius:14px;
+  padding:38px 36px 30px;
+  backdrop-filter:blur(20px) saturate(140%);
+  box-shadow:0 20px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(34,211,238,.06), inset 0 1px 0 rgba(255,255,255,.04);
+  position:relative;
+}
+.login-card::before{
+  content:''; position:absolute; top:0; left:16px; right:16px; height:1px;
+  background:linear-gradient(90deg, transparent, var(--cyan), transparent); opacity:.6;
+}
+.brand-row{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.brand-mark{
+  font-family:var(--display); font-weight:900; font-size:1.5rem; color:var(--amber); letter-spacing:.08em;
+}
+.brand-full{font-size:.62rem;color:var(--text-faint);line-height:1.5;letter-spacing:.02em}
+.card-title{
+  font-family:var(--mono); font-size:.68rem; color:var(--cyan);
+  letter-spacing:.16em; text-transform:uppercase; margin:22px 0 24px;
+  display:flex; justify-content:space-between; align-items:center;
+  padding-bottom:14px; border-bottom:1px solid var(--rim);
+}
+.online-tag{display:flex;align-items:center;gap:6px;font-size:.62rem;color:var(--green)}
+.online-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite}
+
+.form-group{margin-bottom:18px}
+.form-label{
+  display:block; font-size:.68rem; color:var(--text-dim); letter-spacing:.1em;
+  text-transform:uppercase; margin-bottom:8px; font-weight:600;
+}
+.input-wrap{position:relative}
+.input-wrap .ic{
+  position:absolute; left:14px; top:50%; transform:translateY(-50%);
+  color:var(--cyan); opacity:.7; font-size:.9rem; pointer-events:none;
+}
+.form-input{
+  width:100%; background:rgba(6,14,24,.6); border:1px solid var(--rim);
+  border-radius:7px; padding:13px 14px 13px 38px; color:var(--text);
+  font-family:var(--mono); font-size:.9rem; outline:none; transition:.25s;
+}
+.form-input:focus{border-color:var(--cyan); background:rgba(34,211,238,.05); box-shadow:0 0 0 3px rgba(34,211,238,.1)}
+.form-input::placeholder{color:var(--text-faint)}
+
+.login-btn{
+  width:100%; padding:14px; margin-top:6px;
+  background:linear-gradient(135deg,var(--amber),#ff8a3d);
+  border:none; border-radius:7px; color:#1a0f00; font-size:.82rem; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; cursor:pointer; transition:.25s;
+  font-family:var(--body); position:relative; overflow:hidden;
+}
+.login-btn:hover{box-shadow:0 6px 24px rgba(255,176,32,.35); transform:translateY(-1px)}
+.login-btn:active{transform:translateY(0)}
+
+.alert-msg{
+  background:rgba(255,93,108,.12); border:1px solid rgba(255,93,108,.35);
+  border-radius:7px; padding:11px 14px; color:#ffb3ba; font-size:.8rem; margin-bottom:18px;
+}
+
+.cred-toggle{
+  margin-top:20px; text-align:center; font-size:.68rem; color:var(--text-faint);
+  cursor:pointer; letter-spacing:.05em; user-select:none;
+}
+.cred-toggle:hover{color:var(--cyan)}
+.credentials-hint{
+  margin-top:12px; padding:14px; background:rgba(34,211,238,.04);
+  border:1px solid var(--rim); border-radius:7px; display:none;
+}
+.credentials-hint.show{display:block}
+.hint-row{
+  display:flex; justify-content:space-between; font-size:.72rem;
+  color:var(--text-dim); font-family:var(--mono); padding:4px 0;
+}
+.hint-row span:first-child{color:var(--cyan)}
+.hint-row span:last-child{color:var(--text-faint)}
+
+.footer-info{
+  margin-top:22px; text-align:center; font-size:.64rem; color:var(--text-faint);
+  letter-spacing:.04em; line-height:1.8;
+}
+
+@media (max-width:900px){
+  .hud-side{display:none}
+  .form-side{flex:1}
+}
+</style>
+</head>
+<body>
+
+<div class="glow-blob glow-1"></div>
+<div class="glow-blob glow-2"></div>
+<div class="scanline"></div>
+<div class="scan-sweep"></div>
+
+<!-- ═══ LEFT HUD SIDE ═══ -->
+<div class="hud-side">
+  <div class="hud-eyebrow">System Online · HEEP Haridwar</div>
+  <div class="hud-title">AI Digital Twin<br><span>Turbine Monitoring</span></div>
+  <div class="hud-sub">Real-time predictive maintenance platform for 500&nbsp;MW steam turbo-generator units — powered by a Random Forest failure-risk classifier trained on live sensor telemetry.</div>
+
+  <div class="turbine-hud">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <svg viewBox="0 0 520 190" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="steamG" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffb020" stop-opacity=".7"/>
+          <stop offset="100%" stop-color="#22d3ee" stop-opacity=".15"/>
+        </linearGradient>
+        <filter id="gl" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="520" height="190" fill="#070f1a" rx="8"/>
+      <line x1="0" y1="95" x2="520" y2="95" stroke="#16283c" stroke-width="6"/>
+      <ellipse cx="120" cy="95" rx="55" ry="52" fill="#0c1e2e" stroke="#2a4a68" stroke-width="1.5"/>
+      <ellipse cx="120" cy="95" rx="30" ry="28" fill="#0d2436" stroke="#33587c" stroke-width="1.2"/>
+      <g id="b1" style="transform-origin:120px 95px">
+        <line x1="120" y1="68" x2="120" y2="95" stroke="#3d7aa8" stroke-width="4" stroke-linecap="round"/>
+        <line x1="141" y1="79" x2="120" y2="95" stroke="#356a94" stroke-width="4" stroke-linecap="round"/>
+        <line x1="147" y1="95" x2="120" y2="95" stroke="#3d7aa8" stroke-width="4" stroke-linecap="round"/>
+        <line x1="141" y1="111" x2="120" y2="95" stroke="#356a94" stroke-width="4" stroke-linecap="round"/>
+        <line x1="120" y1="122" x2="120" y2="95" stroke="#3d7aa8" stroke-width="4" stroke-linecap="round"/>
+        <line x1="99" y1="111" x2="120" y2="95" stroke="#356a94" stroke-width="4" stroke-linecap="round"/>
+        <line x1="93" y1="95" x2="120" y2="95" stroke="#3d7aa8" stroke-width="4" stroke-linecap="round"/>
+        <line x1="99" y1="79" x2="120" y2="95" stroke="#356a94" stroke-width="4" stroke-linecap="round"/>
+      </g>
+      <ellipse cx="300" cy="95" rx="70" ry="66" fill="#0c1e2e" stroke="#2a4a68" stroke-width="1.5"/>
+      <ellipse cx="300" cy="95" rx="40" ry="38" fill="#0d2436" stroke="#33587c" stroke-width="1.2"/>
+      <g id="b2" style="transform-origin:300px 95px">
+        <line x1="300" y1="60" x2="300" y2="95" stroke="#3d7aa8" stroke-width="5" stroke-linecap="round"/>
+        <line x1="329" y1="74" x2="300" y2="95" stroke="#356a94" stroke-width="5" stroke-linecap="round"/>
+        <line x1="337" y1="95" x2="300" y2="95" stroke="#3d7aa8" stroke-width="5" stroke-linecap="round"/>
+        <line x1="329" y1="116" x2="300" y2="95" stroke="#356a94" stroke-width="5" stroke-linecap="round"/>
+        <line x1="300" y1="130" x2="300" y2="95" stroke="#3d7aa8" stroke-width="5" stroke-linecap="round"/>
+        <line x1="271" y1="116" x2="300" y2="95" stroke="#356a94" stroke-width="5" stroke-linecap="round"/>
+        <line x1="263" y1="95" x2="300" y2="95" stroke="#3d7aa8" stroke-width="5" stroke-linecap="round"/>
+        <line x1="271" y1="74" x2="300" y2="95" stroke="#356a94" stroke-width="5" stroke-linecap="round"/>
+      </g>
+      <ellipse cx="450" cy="95" rx="52" ry="49" fill="#0c1e2e" stroke="#2a4a68" stroke-width="1.5"/>
+      <ellipse cx="450" cy="95" rx="28" ry="26" fill="#0d2436" stroke="#33587c" stroke-width="1.2"/>
+      <g id="b3" style="transform-origin:450px 95px">
+        <line x1="450" y1="70" x2="450" y2="95" stroke="#3d7aa8" stroke-width="4" stroke-linecap="round"/>
+        <line x1="468" y1="80" x2="450" y2="95" stroke="#356a94" stroke-width="4" stroke-linecap="round"/>
+        <line x1="474" y1="95" x2="450" y2="95" stroke="#3d7aa8" stroke-width="4" stroke-linecap="round"/>
+        <line x1="468" y1="110" x2="450" y2="95" stroke="#356a94" stroke-width="4" stroke-linecap="round"/>
+        <line x1="450" y1="120" x2="450" y2="95" stroke="#3d7aa8" stroke-width="4" stroke-linecap="round"/>
+        <line x1="431" y1="110" x2="450" y2="95" stroke="#356a94" stroke-width="4" stroke-linecap="round"/>
+        <line x1="425" y1="95" x2="450" y2="95" stroke="#3d7aa8" stroke-width="4" stroke-linecap="round"/>
+        <line x1="431" y1="80" x2="450" y2="95" stroke="#356a94" stroke-width="4" stroke-linecap="round"/>
+      </g>
+      <circle cx="120" cy="95" r="8" fill="#0a1825" stroke="#ffb020" stroke-width="1.5" filter="url(#gl)"/>
+      <circle cx="300" cy="95" r="10" fill="#0a1825" stroke="#ffb020" stroke-width="1.5" filter="url(#gl)"/>
+      <circle cx="450" cy="95" r="7" fill="#0a1825" stroke="#ffb020" stroke-width="1.5" filter="url(#gl)"/>
+      <circle cx="46" cy="95" r="10" fill="#060f18" stroke="#34e2a0" stroke-width="1.5" filter="url(#gl)"/>
+      <circle cx="494" cy="95" r="10" fill="#060f18" stroke="#34e2a0" stroke-width="1.5" filter="url(#gl)"/>
+      <line x1="20" y1="55" x2="500" y2="55" stroke="url(#steamG)" stroke-width="1.5" stroke-dasharray="12,7">
+        <animate attributeName="stroke-dashoffset" from="0" to="-38" dur="1.4s" repeatCount="indefinite"/>
+      </line>
+      <text x="260" y="168" text-anchor="middle" fill="#3a6484" font-size="9" font-family="JetBrains Mono,monospace" letter-spacing="3">HP · IP · LP TURBINE ASSEMBLY — LIVE ROTOR TELEMETRY</text>
+    </svg>
+  </div>
+
+  <div class="stat-strip">
+    <div class="stat-chip"><div class="n g">1,210</div><div class="l">MW Capacity</div></div>
+    <div class="stat-chip"><div class="n c">3</div><div class="l">Turbo-Gen Units</div></div>
+    <div class="stat-chip"><div class="n a">7</div><div class="l">Sensor Channels</div></div>
+    <div class="stat-chip"><div class="n g">RF</div><div class="l">ML Classifier</div></div>
+  </div>
+</div>
+
+<!-- ═══ RIGHT LOGIN SIDE ═══ -->
+<div class="form-side">
+  <div class="login-card">
+    <div class="brand-row">
+      <div class="brand-mark">BHEL</div>
+      <div class="brand-full">Bharat Heavy Electricals Limited<br>HEEP Unit · Haridwar, Uttarakhand</div>
+    </div>
+
+    <div class="card-title">
+      <span>Secure Access Portal</span>
+      <span class="online-tag">System Online</span>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert-msg">⚠ {{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label class="form-label">Employee ID / Username</label>
+        <div class="input-wrap">
+          <span class="ic">◆</span>
+          <input class="form-input" type="text" name="username" placeholder="Enter username" required autocomplete="off">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-wrap">
+          <span class="ic">◆</span>
+          <input class="form-input" type="password" name="password" placeholder="Enter password" required>
+        </div>
+      </div>
+      <button class="login-btn" type="submit">Access System →</button>
+    </form>
+
+    <div class="cred-toggle" onclick="document.getElementById('credBox').classList.toggle('show')">▾ show demo credentials</div>
+    <div class="credentials-hint" id="credBox">
+      <div class="hint-row"><span>admin</span><span>bhel@admin123</span></div>
+      <div class="hint-row"><span>operator1</span><span>operator@123</span></div>
+      <div class="hint-row"><span>engineer1</span><span>engineer@123</span></div>
+    </div>
+
+    <div class="footer-info">
+      BHEL Digital Twin System v2.0 · HEEP Haridwar<br>
+      Vocational Training Project · UPES × BHEL 2026<br>
+      Authorized Personnel Only
+    </div>
+  </div>
+</div>
+
+<script>
+let a1=0;
+(function spin(){
+  a1=(a1+1)%360;
+  ["b1","b2","b3"].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(el) el.style.transform=`rotate(${a1*(1+i*0.15)}deg)`;
+  });
+  requestAnimationFrame(spin);
+})();
+</script>
+</body>
+</html>

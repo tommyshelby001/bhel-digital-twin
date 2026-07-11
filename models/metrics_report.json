@@ -1,0 +1,43 @@
+{
+  "trained_on": "2026-07-06 17:03:12",
+  "n_samples": 5000,
+  "n_train": 4000,
+  "n_test": 1000,
+  "accuracy": 0.977,
+  "precision": 0.9841,
+  "recall": 0.9029,
+  "f1_score": 0.9418,
+  "roc_auc": 0.9547,
+  "cv_mean": 0.9806,
+  "cv_std": 0.004,
+  "confusion_matrix": [
+    [
+      791,
+      3
+    ],
+    [
+      20,
+      186
+    ]
+  ],
+  "feature_importance": {
+    "steam_temp_C": 0.1662,
+    "steam_pressure_kgcm2": 0.0484,
+    "vibration_mms": 0.2335,
+    "bearing_temp_C": 0.4148,
+    "rpm": 0.0247,
+    "oil_pressure_kgcm2": 0.0964,
+    "load_percent": 0.016
+  },
+  "model_type": "RandomForestClassifier",
+  "n_estimators": 200,
+  "features": [
+    "steam_temp_C",
+    "steam_pressure_kgcm2",
+    "vibration_mms",
+    "bearing_temp_C",
+    "rpm",
+    "oil_pressure_kgcm2",
+    "load_percent"
+  ]
+}

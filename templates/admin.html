@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BHEL HEEP — Admin Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #060d16; --steel: #0b1622; --panel: #101f30; --panel-hi: #16293c;
+  --rim: #2a4a63; --rim2: #35597a;
+  --amber: #ffb020; --amber-dim: #c98a2e; --amber-glow: rgba(255,176,32,.14);
+  --cyan: #22d3ee; --cyan-dim: #3daecb; --cyan-glow: rgba(34,211,238,.12);
+  --green: #34e2a0; --green-glow: rgba(52,226,160,.12);
+  --red: #ff5d6c; --red-glow: rgba(255,93,108,.14);
+  --text: #e7eef6; --text-hi: #ffffff; --dim: #8fb0c8; --dimmer: #6688a2;
+  --display: 'Orbitron', monospace; --body: 'Inter', sans-serif; --mono: 'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--ink); color: var(--text); font-family: var(--body); min-height: 100vh; font-size: 14px; line-height: 1.5; position:relative; }
+.amb-glow{position:fixed;border-radius:50%;filter:blur(110px);opacity:.16;pointer-events:none;z-index:0}
+.amb-1{width:600px;height:600px;background:radial-gradient(circle,var(--amber),transparent 70%);top:-220px;left:-160px}
+.amb-2{width:640px;height:640px;background:radial-gradient(circle,var(--cyan),transparent 70%);bottom:-260px;right:-180px}
+.scanline-ov{position:fixed;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0px, transparent 1px, transparent 3px);}
+.topbar, .page, .footer { position: relative; z-index: 2; }
+
+.topbar { height: 58px; background: var(--steel); border-bottom: 1px solid var(--rim); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 200; gap: 16px; }
+.tb-brand { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.tb-logo { font-family: var(--display); font-size: 1.4rem; font-weight: 900; color: var(--amber); letter-spacing: .1em; }
+.tb-divider { width: 1px; height: 32px; background: var(--rim2); }
+.tb-system { font-family: var(--display); font-size: .55rem; font-weight: 500; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; line-height: 1.6; }
+.tb-system b { color: var(--text-hi); display: block; font-size: .62rem; }
+.tb-meta { display: flex; align-items: center; gap: 14px; }
+.tb-user { text-align: right; }
+.tb-user-name { font-size: .78rem; font-weight: 600; color: var(--text-hi); white-space: nowrap; }
+.tb-user-role { font-size: .58rem; color: var(--red); text-transform: uppercase; letter-spacing: .08em; }
+.tb-nav { display: flex; gap: 2px; }
+.tb-nav a { font-family: var(--body); font-size: .62rem; font-weight: 500; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); text-decoration: none; padding: 6px 12px; border-radius: 2px; border: 1px solid transparent; transition: .2s; }
+.tb-nav a:hover { color: var(--amber); border-color: var(--amber-dim); }
+.tb-nav a.active { color: var(--amber); border-color: var(--amber-dim); background: var(--amber-glow); }
+.tb-nav a.logout:hover { color: var(--red); border-color: rgba(255,93,108,.3); }
+
+.page { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+.page-title { font-family: var(--display); font-size: 1.1rem; font-weight:700; color: var(--text-hi); letter-spacing:.04em; margin-bottom:4px; }
+.page-sub { font-size: .74rem; color: var(--dim); margin-bottom:18px; }
+
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.card { background: var(--panel); border: 1px solid var(--rim); border-radius: 3px; overflow: hidden; position:relative; }
+.corner-hud { position:absolute; width:12px; height:12px; pointer-events:none; z-index:3; }
+.corner-hud.c-tl{top:-1px;left:-1px;border-top:2px solid var(--cyan-dim);border-left:2px solid var(--cyan-dim)}
+.corner-hud.c-br{bottom:-1px;right:-1px;border-bottom:2px solid var(--cyan-dim);border-right:2px solid var(--cyan-dim)}
+.card-header { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--rim); background: linear-gradient(90deg, var(--panel-hi), var(--panel)); }
+.card-title { font-family: var(--display); font-size:.62rem; font-weight:700; color: var(--dim); text-transform:uppercase; letter-spacing:.14em; }
+.card-body { padding:14px 16px; }
+
+.user-card { background: var(--panel-hi); border:1px solid var(--rim); border-radius:2px; padding:12px 14px; margin-bottom:9px; display:flex; justify-content:space-between; align-items:center; }
+.user-name { font-size:.86rem; font-weight:600; color: var(--text-hi); }
+.user-dept { font-size:.68rem; color: var(--dim); margin-top:2px; }
+.user-login { font-size:.6rem; color: var(--dimmer); margin-top:3px; font-family:var(--mono); }
+.role-badge { padding:3px 10px; border-radius:2px; font-size:.6rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-family:var(--mono); }
+.role-badge.admin { background: var(--red-glow); color: var(--red); border:1px solid rgba(255,93,108,.3); }
+.role-badge.operator { background: var(--cyan-glow); color: var(--cyan); border:1px solid rgba(34,211,238,.25); }
+.role-badge.engineer { background: var(--green-glow); color: var(--green); border:1px solid rgba(52,226,160,.25); }
+
+.machine-card { background: var(--panel-hi); border:1px solid var(--rim); border-radius:2px; padding:12px 14px; margin-bottom:9px; }
+.mc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+.mc-id { font-family: var(--mono); color: var(--cyan); font-size:.86rem; font-weight:700; }
+.mc-status { font-family:var(--mono); font-size:.66rem; font-weight:700; letter-spacing:.06em; }
+.mc-status.online { color: var(--green); }
+.mc-status.maintenance { color: var(--amber); }
+.mc-name { font-size:.72rem; color: var(--dim); }
+
+.info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.info-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--rim); font-size:.76rem; }
+.info-row:last-child { border:none; }
+.info-row span:first-child { color: var(--dim); }
+.info-val { color: var(--cyan); font-family: var(--mono); font-weight:600; }
+.info-val.ok { color: var(--green); }
+.info-val.warn { color: var(--amber); }
+
+.log-line { display:flex; gap:10px; padding:6px 0; border-bottom:1px solid var(--rim); font-size:.7rem; font-family:var(--mono); }
+.log-line:last-child { border:none; }
+.log-ts { color: var(--cyan); white-space:nowrap; }
+.log-msg { color: var(--dim); }
+
+.footer { text-align: center; padding: 12px 20px; font-size: .58rem; color: var(--dimmer); font-family: var(--mono); letter-spacing: .05em; border-top: 1px solid var(--rim); margin-top: 20px; }
+.footer .accent { color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="amb-glow amb-1"></div>
+<div class="amb-glow amb-2"></div>
+<div class="scanline-ov"></div>
+
+<div class="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">BHEL</div>
+    <div class="tb-divider"></div>
+    <div class="tb-system"><b>AI Digital Twin Platform</b>HEEP Haridwar · Admin Panel</div>
+  </div>
+  <div class="tb-meta">
+    <div class="tb-user">
+      <div class="tb-user-name">{{ user }}</div>
+      <div class="tb-user-role">Admin Access</div>
+    </div>
+    <nav class="tb-nav">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/history">History</a>
+      <a href="/alerts">Alerts</a>
+      <a href="/admin" class="active">Admin</a>
+      <a href="/logout" class="logout">Sign out</a>
+    </nav>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-title">Admin Control Panel</div>
+  <div class="page-sub">System users, machine registry, and platform configuration — admin access only</div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header"><div class="card-title">User Management</div></div>
+      <div class="card-body">
+        {% for uname, u in users.items() %}
+        <div class="user-card">
+          <div>
+            <div class="user-name">{{ u.name }}</div>
+            <div class="user-dept">{{ u.dept }} · @{{ uname }}</div>
+            {% if u.last_login %}
+            <div class="user-login">Last login: {{ u.last_login }}</div>
+            {% else %}
+            <div class="user-login">Never logged in this session</div>
+            {% endif %}
+          </div>
+          <span class="role-badge {{ u.role }}">{{ u.role }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Machine Registry</div></div>
+      <div class="card-body">
+        {% for mid, m in machines.items() %}
+        <div class="machine-card">
+          <div class="mc-header">
+            <span class="mc-id">{{ mid }}</span>
+            <span class="mc-status {{ m.status }}">● {{ m.status|upper }}</span>
+          </div>
+          <div class="mc-name">{{ m.name }} · {{ m.capacity }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">System Information</div></div>
+    <div class="card-body">
+      <div class="info-grid">
+        <div class="info-row"><span>System</span><span class="info-val">BHEL DT v2.0</span></div>
+        <div class="info-row"><span>AI Model</span><span class="info-val">Random Forest</span></div>
+        <div class="info-row"><span>Framework</span><span class="info-val">Flask + Python</span></div>
+        <div class="info-row"><span>Active Alerts</span><span class="info-val {{ 'warn' if active_alerts else 'ok' }}">{{ active_alerts }}</span></div>
+        <div class="info-row"><span>Location</span><span class="info-val">HEEP Haridwar</span></div>
+        <div class="info-row"><span>Project</span><span class="info-val">UPES Vocational</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <span class="accent">BHEL DIGITAL TWIN v2.0</span> · Admin Access · HEEP Haridwar ·
+  Vocational Training Project — <span class="accent">UPES B.Tech CS (AI/ML)</span> × BHEL 2026
+</div>
+
+<script>
+document.querySelectorAll(".card").forEach(c=>{
+  const tl=document.createElement("span"); tl.className="corner-hud c-tl";
+  const br=document.createElement("span"); br.className="corner-hud c-br";
+  c.appendChild(tl); c.appendChild(br);
+});
+</script>
+</body>
+</html>

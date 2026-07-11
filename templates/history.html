@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BHEL Digital Twin — History</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --ink: #060d16; --steel: #0b1622; --panel: #101f30; --panel-hi: #16293c;
+  --rim: #2a4a63; --rim2: #35597a;
+  --amber: #ffb020; --amber-dim: #c98a2e; --amber-glow: rgba(255,176,32,.14);
+  --cyan: #22d3ee; --cyan-dim: #3daecb; --cyan-glow: rgba(34,211,238,.12);
+  --green: #34e2a0; --green-glow: rgba(52,226,160,.12);
+  --red: #ff5d6c; --red-glow: rgba(255,93,108,.14);
+  --text: #e7eef6; --text-hi: #ffffff; --dim: #8fb0c8; --dimmer: #6688a2;
+  --display: 'Orbitron', monospace; --body: 'Inter', sans-serif; --mono: 'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--ink); color: var(--text); font-family: var(--body); min-height: 100vh; font-size: 14px; line-height: 1.5; position:relative; }
+.amb-glow{position:fixed;border-radius:50%;filter:blur(110px);opacity:.16;pointer-events:none;z-index:0}
+.amb-1{width:600px;height:600px;background:radial-gradient(circle,var(--amber),transparent 70%);top:-220px;left:-160px}
+.amb-2{width:640px;height:640px;background:radial-gradient(circle,var(--cyan),transparent 70%);bottom:-260px;right:-180px}
+.scanline-ov{position:fixed;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0px, transparent 1px, transparent 3px);}
+.topbar, .page, .footer { position: relative; z-index: 2; }
+.card { position: relative; }
+.corner-hud { position:absolute; width:12px; height:12px; pointer-events:none; z-index:3; }
+.corner-hud.c-tl{top:-1px;left:-1px;border-top:2px solid var(--cyan-dim);border-left:2px solid var(--cyan-dim)}
+.corner-hud.c-br{bottom:-1px;right:-1px;border-bottom:2px solid var(--cyan-dim);border-right:2px solid var(--cyan-dim)}
+
+.topbar { height: 58px; background: var(--steel); border-bottom: 1px solid var(--rim); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 200; gap: 16px; }
+.tb-brand { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.tb-logo { font-family: var(--display); font-size: 1.4rem; font-weight: 900; color: var(--amber); letter-spacing: .1em; }
+.tb-divider { width: 1px; height: 32px; background: var(--rim2); }
+.tb-system { font-family: var(--display); font-size: .55rem; font-weight: 500; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; line-height: 1.6; }
+.tb-system b { color: var(--text); display: block; font-size: .62rem; }
+.tb-pills { display: flex; gap: 8px; flex: 1; justify-content: center; }
+.pill { display: flex; align-items: center; gap: 8px; padding: 5px 14px; background: var(--panel); border: 1px solid var(--rim); border-radius: 2px; min-width: 110px; }
+.pill-val { font-family: var(--mono); font-size: 1rem; font-weight: 500; color: var(--text-hi); letter-spacing: .02em; }
+.pill-val.green { color: var(--green); } .pill-val.amber { color: var(--amber); } .pill-val.red { color: var(--red); }
+.pill-label { font-size: .58rem; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+.tb-meta { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.tb-user { text-align: right; }
+.tb-user-name { font-size: .78rem; font-weight: 600; color: var(--text-hi); white-space: nowrap; }
+.tb-user-role { font-size: .58rem; color: var(--amber); text-transform: uppercase; letter-spacing: .08em; }
+.tb-clock { font-family: var(--mono); font-size: .9rem; color: var(--cyan); text-align: right; white-space: nowrap; }
+.tb-clock small { display: block; font-size: .58rem; color: var(--dim); }
+.tb-nav { display: flex; gap: 2px; }
+.tb-nav a { font-family: var(--body); font-size: .62rem; font-weight: 500; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); text-decoration: none; padding: 6px 12px; border-radius: 2px; border: 1px solid transparent; transition: .2s; }
+.tb-nav a:hover { color: var(--amber); border-color: var(--amber-dim); }
+.tb-nav a.active { color: var(--amber); border-color: var(--amber-dim); background: var(--amber-glow); }
+.tb-nav a.logout:hover { color: var(--red); border-color: rgba(239,68,68,.3); }
+
+.page { padding: 16px 20px; max-width: 1800px; margin: 0 auto; }
+.machine-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.mtab { font-family: var(--mono); font-size: .65rem; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; padding: 6px 16px; border-radius: 2px; border: 1px solid var(--rim); color: var(--dim); background: transparent; cursor: pointer; transition: .2s; }
+.mtab:hover:not(.maint) { border-color: var(--amber-dim); color: var(--amber); }
+.mtab.active { border-color: var(--amber); color: var(--amber); background: var(--amber-glow); }
+.mtab.maint { border-color: var(--dimmer); color: var(--dimmer); cursor: not-allowed; font-size: .6rem; }
+
+.card { background: var(--panel); border: 1px solid var(--rim); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--rim); background: linear-gradient(90deg, var(--panel-hi), var(--panel)); }
+.card-title { font-family: var(--display); font-size: .58rem; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: .14em; }
+.card-body { padding: 14px 16px; }
+
+.range-controls { display: flex; gap: 6px; align-items: center; }
+.range-btn { font-family: var(--mono); font-size: .6rem; padding: 5px 12px; border-radius: 2px; border: 1px solid var(--rim); color: var(--dim); background: transparent; cursor: pointer; transition: .2s; text-transform: uppercase; letter-spacing: .05em; }
+.range-btn:hover { border-color: var(--cyan-dim); color: var(--cyan); }
+.range-btn.active { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-glow); }
+.export-btn { font-family: var(--mono); font-size: .6rem; padding: 5px 14px; border-radius: 2px; border: 1px solid var(--green); color: var(--green); background: var(--green-glow); cursor: pointer; transition: .2s; text-transform: uppercase; letter-spacing: .05em; margin-left: auto; }
+.export-btn:hover { background: rgba(16,185,129,.2); }
+
+.stats-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+.stat-card { background: var(--panel-hi); border: 1px solid var(--rim); border-radius: 2px; padding: 10px 12px; }
+.stat-card-label { font-size: .55rem; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-family: var(--display); margin-bottom: 8px; }
+.stat-card-row { display: flex; justify-content: space-between; font-family: var(--mono); font-size: .68rem; padding: 2px 0; }
+.stat-card-row span:first-child { color: var(--dimmer); }
+.stat-card-row span:last-child { color: var(--text-hi); }
+
+.chart-big { height: 260px; position: relative; }
+
+.summary-strip { display: flex; gap: 14px; margin-bottom: 14px; }
+.summary-item { flex: 1; background: var(--panel); border: 1px solid var(--rim); border-radius: 3px; padding: 14px 18px; text-align: center; }
+.summary-num { font-family: var(--display); font-size: 1.8rem; font-weight: 900; }
+.summary-num.green { color: var(--green); } .summary-num.red { color: var(--red); } .summary-num.cyan { color: var(--cyan); }
+.summary-label { font-size: .6rem; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-top: 4px; }
+
+.hist-table { width: 100%; border-collapse: collapse; font-size: .72rem; }
+.hist-table th { background: var(--panel-hi); padding: 8px 10px; font-size: .58rem; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; text-align: left; font-family: var(--display); border-bottom: 1px solid var(--rim); position: sticky; top: 0; }
+.hist-table td { padding: 7px 10px; border-bottom: 1px solid var(--rim); font-family: var(--mono); color: var(--text); }
+.hist-table tr:hover td { background: rgba(6,182,212,.03); }
+.table-wrap { max-height: 420px; overflow-y: auto; }
+.badge-sm { padding: 2px 8px; border-radius: 2px; font-size: .6rem; font-weight: 600; text-transform: uppercase; }
+.badge-sm.safe { color: var(--green); background: var(--green-glow); }
+.badge-sm.risk { color: var(--red); background: var(--red-glow); }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--dim); }
+.empty-state b { color: var(--amber); display: block; margin-top: 8px; font-family: var(--display); font-size: .9rem; }
+
+.footer { text-align: center; padding: 12px 20px; font-size: .58rem; color: var(--dimmer); font-family: var(--mono); letter-spacing: .05em; border-top: 1px solid var(--rim); margin-top: 12px; }
+.footer .accent { color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="amb-glow amb-1"></div>
+<div class="amb-glow amb-2"></div>
+<div class="scanline-ov"></div>
+
+<div class="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">BHEL</div>
+    <div class="tb-divider"></div>
+    <div class="tb-system"><b>AI Digital Twin Platform</b>HEEP Haridwar · Historical Trend Analysis</div>
+  </div>
+  <div class="tb-pills">
+    <div class="pill"><div><div class="pill-val" id="statCount">0</div><div class="pill-label">Readings Loaded</div></div></div>
+    <div class="pill"><div><div class="pill-val green" id="statSafe">0</div><div class="pill-label">Safe</div></div></div>
+    <div class="pill"><div><div class="pill-val red" id="statRisk">0</div><div class="pill-label">Risk Events</div></div></div>
+    <div class="pill"><div><div class="pill-val amber" id="statAlerts">{{ active_alerts }}</div><div class="pill-label">Active Alerts</div></div></div>
+  </div>
+  <div class="tb-meta">
+    <div class="tb-user">
+      <div class="tb-user-name">{{ user }}</div>
+      <div class="tb-user-role">{{ role }}</div>
+    </div>
+    <div class="tb-clock"><div id="tbTime">--:--:--</div><small id="tbDate"></small></div>
+    <nav class="tb-nav">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/history" class="active">History</a>
+      <a href="/alerts">Alerts</a>
+      {% if role == 'admin' %}<a href="/admin">Admin</a>{% endif %}
+      <a href="/logout" class="logout">Sign out</a>
+    </nav>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="machine-tabs">
+    {% for mid, m in machines.items() %}
+    <button class="mtab {% if loop.first %}active{% endif %} {% if m.status=='maintenance' %}maint{% endif %}"
+      data-id="{{ mid }}" onclick="selectMachine('{{ mid }}')">
+      {{ mid }} · {{ m.name }} · {{ m.capacity }}
+      {% if m.status=='maintenance' %} [MAINTENANCE]{% endif %}
+    </button>
+    {% endfor %}
+  </div>
+
+  <div class="summary-strip">
+    <div class="summary-item"><div class="summary-num cyan" id="sumCount">--</div><div class="summary-label">Total Readings (session)</div></div>
+    <div class="summary-item"><div class="summary-num green" id="sumSafePct">--</div><div class="summary-label">% Time Safe</div></div>
+    <div class="summary-item"><div class="summary-num red" id="sumRiskPct">--</div><div class="summary-label">% Time At Risk</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Sensor Trend — <span id="machineTitle">TG-01</span></div>
+      <div class="range-controls">
+        <button class="range-btn" data-n="30" onclick="setRange(30)">Last 30</button>
+        <button class="range-btn active" data-n="100" onclick="setRange(100)">Last 100</button>
+        <button class="range-btn" data-n="500" onclick="setRange(500)">All (500)</button>
+        <button class="export-btn" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="chart-big"><canvas id="histChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Statistical Summary</div></div>
+    <div class="card-body">
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Raw Reading Log</div></div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table class="hist-table" id="histTable">
+          <thead>
+            <tr>
+              <th>Time</th><th>Steam °C</th><th>Pressure</th><th>Vibration</th>
+              <th>Bearing °C</th><th>RPM</th><th>Oil Press</th><th>Load %</th>
+              <th>AI Prob</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="histTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <span class="accent">BHEL DIGITAL TWIN v2.0</span> · HEEP Haridwar · Historical Trend Analysis ·
+  Vocational Training Project — <span class="accent">UPES B.Tech CS (AI/ML)</span> × BHEL 2026
+</div>
+
+<script>
+function clock(){
+  const n=new Date();
+  document.getElementById("tbTime").textContent=n.toLocaleTimeString();
+  document.getElementById("tbDate").textContent=n.toLocaleDateString("en-IN",{weekday:"short",day:"2-digit",month:"short",year:"numeric"});
+}
+setInterval(clock,1000); clock();
+
+const machNames={
+  {% for mid, m in machines.items() %}"{{ mid }}":"{{ mid }} · {{ m.name }} · {{ m.capacity }}"{% if not loop.last %},{% endif %}{% endfor %}
+};
+const machStatus={
+  {% for mid, m in machines.items() %}"{{ mid }}":"{{ m.status }}"{% if not loop.last %},{% endif %}{% endfor %}
+};
+
+let curMachine="{{ machines.keys()|list|first }}";
+let curRange=100;
+
+const ctx=document.getElementById("histChart").getContext("2d");
+const chartData={labels:[],datasets:[
+  {label:"Vibration (mm/s)",data:[],borderColor:"#06b6d4",backgroundColor:"rgba(6,182,212,.06)",tension:.35,pointRadius:0,borderWidth:1.5,fill:true,yAxisID:"y"},
+  {label:"Bearing Temp (°C÷10)",data:[],borderColor:"#f59e0b",backgroundColor:"rgba(245,158,11,.04)",tension:.35,pointRadius:0,borderWidth:1.5,fill:false,yAxisID:"y"},
+  {label:"Failure Prob (%)",data:[],borderColor:"#ef4444",backgroundColor:"rgba(239,68,68,.05)",tension:.35,pointRadius:0,borderWidth:1.5,fill:false,yAxisID:"y1"}
+]};
+const histChart=new Chart(ctx,{type:"line",data:chartData,options:{
+  responsive:true,maintainAspectRatio:false,animation:{duration:250},
+  plugins:{legend:{labels:{color:"#4a6a80",font:{size:9,family:"JetBrains Mono"}}}},
+  scales:{
+    x:{ticks:{color:"#2a4055",maxTicksLimit:8,font:{size:8}},grid:{color:"rgba(18,32,48,.9)"}},
+    y:{position:"left",ticks:{color:"#2a4055",font:{size:8}},grid:{color:"rgba(18,32,48,.9)"}},
+    y1:{position:"right",min:0,max:100,ticks:{color:"#2a4055",font:{size:8}},grid:{display:false}}
+  }
+}});
+
+function setRange(n){
+  curRange=n;
+  document.querySelectorAll(".range-btn").forEach(b=>b.classList.toggle("active",+b.dataset.n===n));
+  loadHistory();
+}
+
+function selectMachine(id){
+  if(machStatus[id]==="maintenance"){ return; }
+  curMachine=id;
+  document.querySelectorAll(".mtab").forEach(t=>t.classList.toggle("active",t.dataset.id===id));
+  document.getElementById("machineTitle").textContent=machNames[id]||id;
+  loadHistory();
+}
+
+const STAT_META = [
+  {k:"steam_temp_C",l:"Steam Temp",u:"°C"},
+  {k:"steam_pressure_kgcm2",l:"Pressure",u:"kg/cm²"},
+  {k:"vibration_mms",l:"Vibration",u:"mm/s"},
+  {k:"bearing_temp_C",l:"Bearing",u:"°C"},
+  {k:"rpm",l:"RPM",u:""},
+  {k:"oil_pressure_kgcm2",l:"Oil Press",u:"kg/cm²"},
+  {k:"load_percent",l:"Load",u:"%"}
+];
+
+async function loadHistory(){
+  try{
+    const r = await fetch(`/api/history/${curMachine}?limit=${curRange}`,{credentials:"include"});
+    if(!r.ok){ showEmpty(); return; }
+    const res = await r.json();
+    const data = res.data || [];
+
+    document.getElementById("statCount").textContent = res.count||0;
+    document.getElementById("statSafe").textContent = res.safe_readings||0;
+    document.getElementById("statRisk").textContent = res.risk_readings||0;
+    document.getElementById("sumCount").textContent = res.count||0;
+    const total = (res.count||0) || 1;
+    document.getElementById("sumSafePct").textContent = ((res.safe_readings||0)/total*100).toFixed(0)+"%";
+    document.getElementById("sumRiskPct").textContent = ((res.risk_readings||0)/total*100).toFixed(0)+"%";
+
+    if(!data.length){ showEmpty(); return; }
+
+    chartData.labels = data.map(d=>d.timestamp);
+    chartData.datasets[0].data = data.map(d=>d.vibration_mms);
+    chartData.datasets[1].data = data.map(d=>+(d.bearing_temp_C/10).toFixed(2));
+    chartData.datasets[2].data = data.map(d=>d.failure_probability);
+    histChart.update();
+
+    const grid = document.getElementById("statsGrid");
+    grid.innerHTML = "";
+    STAT_META.forEach(s=>{
+      const st = res.stats[s.k];
+      if(!st) return;
+      const card = document.createElement("div");
+      card.className = "stat-card";
+      card.innerHTML = `<div class="stat-card-label">${s.l}</div>
+        <div class="stat-card-row"><span>Min</span><span>${st.min} ${s.u}</span></div>
+        <div class="stat-card-row"><span>Avg</span><span>${st.avg} ${s.u}</span></div>
+        <div class="stat-card-row"><span>Max</span><span>${st.max} ${s.u}</span></div>`;
+      grid.appendChild(card);
+    });
+
+    const tbody = document.getElementById("histTbody");
+    tbody.innerHTML = "";
+    data.slice().reverse().forEach(d=>{
+      const tr = document.createElement("tr");
+      const isRisk = d.status==="FAILURE_RISK";
+      tr.innerHTML = `<td>${d.timestamp}</td><td>${d.steam_temp_C}</td><td>${d.steam_pressure_kgcm2}</td>
+        <td>${d.vibration_mms}</td><td>${d.bearing_temp_C}</td><td>${d.rpm}</td>
+        <td>${d.oil_pressure_kgcm2}</td><td>${d.load_percent}</td>
+        <td>${d.failure_probability}%</td>
+        <td><span class="badge-sm ${isRisk?'risk':'safe'}">${isRisk?'Risk':'Safe'}</span></td>`;
+      tbody.appendChild(tr);
+    });
+  }catch(e){
+    showEmpty();
+  }
+}
+
+function showEmpty(){
+  document.getElementById("histTbody").innerHTML =
+    `<tr><td colspan="10"><div class="empty-state">No historical data yet for this machine.<b>Open the Dashboard tab and let it run for a bit — history builds up as live readings come in.</b></div></td></tr>`;
+}
+
+function exportCSV(){
+  window.location.href = `/api/history/${curMachine}/csv`;
+}
+
+selectMachine(curMachine);
+loadHistory();
+setInterval(loadHistory, 5000);
+
+document.querySelectorAll(".card").forEach(c=>{
+  const tl=document.createElement("span"); tl.className="corner-hud c-tl";
+  const br=document.createElement("span"); br.className="corner-hud c-br";
+  c.appendChild(tl); c.appendChild(br);
+});
+</script>
+</body>
+</html>
