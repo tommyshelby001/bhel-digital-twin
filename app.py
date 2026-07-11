@@ -174,9 +174,35 @@ def api_live(machine_id):
 @app.route("/api/history/<machine_id>")
 @login_required
 def api_history(machine_id):
-    n = request.args.get("n", 100, type=int)
+    if machine_id not in MACHINES:
+        return jsonify({"error": "Machine not found"}), 404
+    limit = request.args.get("limit", request.args.get("n", 100), type=int)
+    limit = max(1, min(limit, 500))
     history = MACHINE_STATE.get(machine_id, {}).get("history", [])
-    return jsonify(history[-n:])
+    data = history[-limit:]
+
+    stats = {}
+    if data:
+        feature_keys = ["steam_temp_C", "steam_pressure_kgcm2", "vibration_mms",
+                         "bearing_temp_C", "rpm", "oil_pressure_kgcm2", "load_percent"]
+        for f in feature_keys:
+            vals = [d[f] for d in data if f in d]
+            if vals:
+                stats[f] = {
+                    "min": round(min(vals), 2),
+                    "max": round(max(vals), 2),
+                    "avg": round(sum(vals) / len(vals), 2)
+                }
+    risk_count = sum(1 for d in data if d.get("status") == "FAILURE_RISK")
+
+    return jsonify({
+        "machine_id": machine_id,
+        "count": len(data),
+        "data": data,
+        "stats": stats,
+        "risk_readings": risk_count,
+        "safe_readings": len(data) - risk_count
+    })
 
 @app.route("/api/history/<machine_id>/csv")
 @login_required
